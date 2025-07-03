@@ -33,7 +33,7 @@ bool VideoPipeline::initialize()
     }
 
     // Настраиваем элементы
-    g_object_set(src, "port", 5001,
+    g_object_set(src, "port", 5000,
                  "caps", gst_caps_from_string("application/x-rtp,media=video,encoding-name=H264"),
                  nullptr);
     g_object_set(jitterbuffer, "latency", 200, nullptr);

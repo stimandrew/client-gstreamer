@@ -25,35 +25,6 @@ Window {
             height: parent.height
         }
 
-        Rectangle {
-            color: Qt.rgba(0, 1, 1, 0.7)
-            border.width: 1
-            border.color: "red"
-            anchors.bottom: video.bottom
-            anchors.bottomMargin: 15
-            anchors.horizontalCenter: parent.horizontalCenter
-            width : parent.width - 30
-            height: parent.height - 30
-            radius: 8
 
-            MouseArea {
-                id: mousearea
-                anchors.fill: parent
-                hoverEnabled: true
-                onEntered: {
-                    parent.opacity = 1.0
-                    hidetimer.start()
-                }
-            }
-
-            Timer {
-                id: hidetimer
-                interval: 500
-                onTriggered: {
-                    parent.opacity = 0.0
-                    stop()
-                }
-            }
-        }
     }
 }
