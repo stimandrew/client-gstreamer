@@ -2,7 +2,7 @@
 #include <QQuickItem>
 #include <gst/gst.h>
 
-VideoPipeline::VideoPipeline(QObject *parent) : QObject(parent) {}
+VideoPipeline::VideoPipeline(int port, QObject *parent) : QObject(parent), m_port(port) {}
 
 VideoPipeline::~VideoPipeline()
 {
@@ -33,7 +33,7 @@ bool VideoPipeline::initialize()
     }
 
     // Настраиваем элементы
-    g_object_set(src, "port", 5000,
+    g_object_set(src, "port", m_port, // Используем переданный порт
                  "caps", gst_caps_from_string("application/x-rtp,media=video,encoding-name=H264"),
                  nullptr);
     g_object_set(jitterbuffer, "latency", 200, nullptr);

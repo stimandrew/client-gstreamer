@@ -10,7 +10,7 @@ class VideoPipeline : public QObject
 {
     Q_OBJECT
 public:
-    explicit VideoPipeline(QObject *parent = nullptr);
+    explicit VideoPipeline(int port, QObject *parent = nullptr);
     ~VideoPipeline();
 
     bool initialize();
@@ -19,8 +19,10 @@ public:
     void setVideoItem(QObject *videoItem);
 
     QRunnable* createSetPlayingJob();
+    int port() const { return m_port; }
 
 private:
     GstElement *pipeline = nullptr;
     GstElement *sink = nullptr;
+    int m_port;
 };

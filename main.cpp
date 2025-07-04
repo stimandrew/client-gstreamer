@@ -2,6 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 #include <QQuickItem>
+#include <QCommandLineParser>
 #include "setplaying.h"
 #include "videopipeline.h"
 
@@ -18,9 +19,24 @@ int main(int argc, char *argv[])
     {
         QGuiApplication app(argc, argv);
 
+        // Настройка парсера командной строки
+        QCommandLineParser parser;
+        parser.setApplicationDescription("GStreamer UDP Video Client");
+        parser.addHelpOption();
+
+        QCommandLineOption portOption(
+            QStringList() << "p" << "port",
+            "UDP port",
+            "port",
+            "5000" // Значение по умолчанию
+            );
+        parser.addOption(portOption);
+        parser.process(app);
+
         QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 
-        VideoPipeline pipeline;
+        VideoPipeline pipeline(parser.value(portOption).toInt());
+
         if (!pipeline.initialize()) {
             g_printerr("Ошибка инициализации pipeline!\n");
             return -1;
@@ -39,6 +55,9 @@ int main(int argc, char *argv[])
         pipeline.setVideoItem(videoItem);
         rootObject->scheduleRenderJob(pipeline.createSetPlayingJob(),
                                       QQuickWindow::BeforeSynchronizingStage);
+
+
+
         ret = app.exec();
 
 
