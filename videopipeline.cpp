@@ -1,7 +1,6 @@
 #include "videopipeline.h"
-#include <QQuickItem>
-#include <QQuickWindow>
-#include <gst/gst.h>
+#include <QDebug>
+#include <gst/app/gstappsink.h>
 
 VideoPipeline::VideoPipeline(int port, QObject *parent)
     : QObject(parent), m_port(port)
@@ -14,64 +13,32 @@ VideoPipeline::VideoPipeline(int port, QObject *parent)
 VideoPipeline::~VideoPipeline()
 {
     stop();
-    if (glContext) {
-        glContext->makeCurrent(surface);
-        glContext->doneCurrent();
-        delete glContext;
-    }
-    if (surface) {
-        delete surface;
-    }
     workerThread->quit();
     workerThread->wait();
 }
 
 bool VideoPipeline::initialize()
 {
-    // Инициализация OpenGL контекста с правильными параметрами
-    QSurfaceFormat format;
-    format.setRenderableType(QSurfaceFormat::OpenGLES);
-    format.setVersion(2, 0);
-    format.setProfile(QSurfaceFormat::NoProfile);
-    format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
-
-    glContext = new QOpenGLContext();
-    glContext->setFormat(format);
-
-    if (!glContext->create()) {
-        qWarning("Failed to create OpenGL context");
-        return false;
-    }
-
-    surface = new QOffscreenSurface();
-    surface->setFormat(glContext->format());
-    surface->create();
-
-    // Инициализация GStreamer GL
-    if (!gst_is_initialized()) {
-        gst_init(nullptr, nullptr);
-    }
-
-    // Создаем элементы pipeline с проверкой
     pipeline = gst_pipeline_new("video-pipeline");
-    // Создаем элементы pipeline
     GstElement *src = gst_element_factory_make("udpsrc", nullptr);
     GstElement *jitterbuffer = gst_element_factory_make("rtpjitterbuffer", nullptr);
     GstElement *rtpdepay = gst_element_factory_make("rtph264depay", nullptr);
     GstElement *parse = gst_element_factory_make("h264parse", nullptr);
+    GstElement *identity = gst_element_factory_make("identity", nullptr);
     GstElement *decoder = gst_element_factory_make("mppvideodec", nullptr);
     GstElement *queue = gst_element_factory_make("queue", nullptr);
-    GstElement *glupload = gst_element_factory_make("glupload", nullptr);
-    GstElement *convert = gst_element_factory_make("glcolorconvert", nullptr);
-    sink = gst_element_factory_make("qml6glsink", nullptr);
+    GstElement *convert = gst_element_factory_make("videoconvert", nullptr);
+    GstElement *capsfilter = gst_element_factory_make("capsfilter", nullptr);
+    sink = gst_element_factory_make("appsink", nullptr);
 
-    if (!src || !jitterbuffer || !rtpdepay || !parse || !decoder ||
-        !queue || !glupload || !convert || !sink) {
+    if (!src || !jitterbuffer || !rtpdepay || !parse || !identity || !decoder ||
+        !queue || !convert || !capsfilter || !sink) {
+        qWarning() << "Failed to create elements";
         return false;
     }
 
-    // Настраиваем элементы
-    g_object_set(src, "port", m_port, // Используем переданный порт
+    // Настройка элементов
+    g_object_set(src, "port", m_port,
                  "caps", gst_caps_from_string("application/x-rtp,media=video,encoding-name=H264"),
                  nullptr);
     g_object_set(jitterbuffer,
@@ -84,15 +51,22 @@ bool VideoPipeline::initialize()
                  "max-size-buffers", 2,
                  "max-size-time", 0,
                  "max-size-bytes", 0,
-                 "leaky", 2, // 2 = downstream
+                 "leaky", 2,
                  nullptr);
 
+    // Настройка caps для вывода в RGB формате
+    GstCaps *caps = gst_caps_new_simple("video/x-raw",
+                                        "format", G_TYPE_STRING, "RGBA",
+                                        nullptr);
+    g_object_set(capsfilter, "caps", caps, nullptr);
+    gst_caps_unref(caps);
+
+    // Настройка appsink
     g_object_set(sink,
+                 "emit-signals", TRUE,
                  "sync", FALSE,
-                 "async", FALSE,
-                 "max-lateness", -1,
-                 "qos", FALSE,
                  nullptr);
+    g_signal_connect(sink, "new-sample", G_CALLBACK(newSampleCallback), this);
 
     // Добавляем элементы в pipeline
     gst_bin_add_many(GST_BIN(pipeline),
@@ -100,23 +74,26 @@ bool VideoPipeline::initialize()
                      jitterbuffer,
                      rtpdepay,
                      parse,
+                     identity,
                      decoder,
                      queue,
-                     glupload,
                      convert,
+                     capsfilter,
                      sink,
                      nullptr);
 
     // Соединяем элементы
-    if (!gst_element_link_many(src, jitterbuffer, rtpdepay, parse, decoder,
-                               queue, glupload, convert, sink, nullptr)) {
+    if (!gst_element_link_many(src, jitterbuffer, rtpdepay, parse, identity, decoder,
+                               queue, convert, capsfilter, sink, nullptr)) {
+        qWarning() << "Failed to link elements";
         return false;
     }
 
     return true;
 }
 
-void VideoPipeline::start() {
+void VideoPipeline::start()
+{
     QMutexLocker locker(&m_pipelineMutex);
     if (pipeline) {
         gst_element_set_state(pipeline, GST_STATE_READY);
@@ -127,21 +104,48 @@ void VideoPipeline::start() {
     }
 }
 
-void VideoPipeline::stop() {
+void VideoPipeline::stop()
+{
     QMutexLocker locker(&m_pipelineMutex);
     if (pipeline) {
         gst_element_set_state(pipeline, GST_STATE_NULL);
     }
 }
 
-void VideoPipeline::setVideoItem(QObject *videoItem)
+GstFlowReturn VideoPipeline::newSampleCallback(GstElement *sink, gpointer data)
 {
-    if (sink && videoItem) {
-        if (glContext->makeCurrent(surface)) {
-            g_object_set(sink, "widget", videoItem, nullptr);
-            glContext->doneCurrent();
+    VideoPipeline *pipeline = static_cast<VideoPipeline*>(data);
+    GstSample *sample = gst_app_sink_pull_sample(GST_APP_SINK(sink));
+    return pipeline->handleSample(sample);
+}
+
+GstFlowReturn VideoPipeline::handleSample(GstSample *sample)
+{
+    GstBuffer *buffer = gst_sample_get_buffer(sample);
+    GstCaps *caps = gst_sample_get_caps(sample);
+    GstStructure *structure = gst_caps_get_structure(caps, 0);
+
+    int width, height;
+    gst_structure_get_int(structure, "width", &width);
+    gst_structure_get_int(structure, "height", &height);
+
+    const char *format;
+    format = gst_structure_get_string(structure, "format");
+
+    GstMapInfo map;
+    if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+        QImage image;
+        if (format && strcmp(format, "NV12") == 0) {
+            // Handle NV12 format
+            image = QImage(map.data, width, height, QImage::Format_RGBA8888);
         } else {
-            qWarning("Failed to make OpenGL context current");
+            // Fallback to RGB (you might need to add conversion)
+            image = QImage(map.data, width, height, QImage::Format_RGBA8888);
         }
+        emit newFrame(image.copy());
+        gst_buffer_unmap(buffer, &map);
     }
+
+    gst_sample_unref(sample);
+    return GST_FLOW_OK;
 }

@@ -1,9 +1,6 @@
 import QtQuick 6.0
-import QtQuick.Controls 6.0
-import QtQuick.Dialogs 6.0
 import QtQuick.Window 6.0
-
-import org.freedesktop.gstreamer.Qt6GLVideoItem 1.0
+import VideoRenderer 1.0
 
 Window {
     id: window
@@ -21,7 +18,7 @@ Window {
             width: parent.width / 2 - 1
             height: parent.height
 
-            GstGLQt6VideoItem {
+            VideoRenderer {
                 id: video1
                 objectName: "videoItem1"
                 anchors.fill: parent
@@ -33,7 +30,7 @@ Window {
             width: parent.width / 2 - 1
             height: parent.height
 
-            GstGLQt6VideoItem {
+            VideoRenderer {
                 id: video2
                 objectName: "videoItem2"
                 anchors.fill: parent

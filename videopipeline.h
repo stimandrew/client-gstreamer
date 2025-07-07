@@ -2,10 +2,9 @@
 
 #include <QObject>
 #include <QThread>
-#include <QOpenGLContext>
-#include <QOffscreenSurface>
-#include <gst/gst.h>
+#include <QImage>
 #include <QMutex>
+#include <gst/gst.h>
 
 class VideoPipeline : public QObject
 {
@@ -17,17 +16,17 @@ public:
     bool initialize();
     void start();
     void stop();
-    void setVideoItem(QObject *videoItem);
 
-    int port() const { return m_port; }
-    GstElement* getPipeline() const { return pipeline; }
+signals:
+    void newFrame(const QImage &frame);
 
 private:
+    static GstFlowReturn newSampleCallback(GstElement *sink, gpointer data);
+    GstFlowReturn handleSample(GstSample *sample);
+
     GstElement *pipeline = nullptr;
     GstElement *sink = nullptr;
     int m_port;
     QThread *workerThread;
-    QOpenGLContext *glContext = nullptr;
-    QOffscreenSurface *surface = nullptr;
     mutable QMutex m_pipelineMutex;
 };

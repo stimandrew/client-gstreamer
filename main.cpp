@@ -1,11 +1,12 @@
-#include <QApplication>
+#include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 #include <QQuickItem>
 #include <QCommandLineParser>
 #include "videopipeline.h"
+#include "videorenderer.h"
 #include <QTimer>
-
+#include <gst/gst.h>
 
 int main(int argc, char *argv[])
 {
@@ -14,13 +15,14 @@ int main(int argc, char *argv[])
     qputenv("GST_DEBUG_NO_COLOR", "1");
 
     int ret;
-    gst_init (&argc, &argv);
+    gst_init(&argc, &argv);
 
     {
         QGuiApplication app(argc, argv);
 
+        // Регистрируем наш VideoRenderer в QML
+        qmlRegisterType<VideoRenderer>("VideoRenderer", 1, 0, "VideoRenderer");
 
-        // Настройка парсера командной строки
         QCommandLineParser parser;
         parser.setApplicationDescription("GStreamer UDP Video Client");
         parser.addHelpOption();
@@ -29,8 +31,7 @@ int main(int argc, char *argv[])
             QStringList() << "p" << "port",
             "UDP port",
             "port",
-            "5000" // Значение по умолчанию
-            );
+            "5000");
         parser.addOption(portOption);
         parser.process(app);
 
@@ -39,38 +40,33 @@ int main(int argc, char *argv[])
         VideoPipeline *pipeline1 = new VideoPipeline(5000);
         VideoPipeline *pipeline2 = new VideoPipeline(5001);
         if (!pipeline1->initialize() || !pipeline2->initialize()) {
-            g_printerr("Ошибка инициализации pipeline!\n");
+            qWarning("Ошибка инициализации pipeline!");
             return -1;
         }
-
 
         QQmlApplicationEngine engine;
         engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
 
         QQuickWindow *rootObject = static_cast<QQuickWindow*>(engine.rootObjects().first());
-        QQuickItem *videoItem1 = rootObject->findChild<QQuickItem*>("videoItem1");
-        QQuickItem *videoItem2 = rootObject->findChild<QQuickItem*>("videoItem2");
+        VideoRenderer *videoItem1 = rootObject->findChild<VideoRenderer*>("videoItem1");
+        VideoRenderer *videoItem2 = rootObject->findChild<VideoRenderer*>("videoItem2");
+
+        QObject::connect(pipeline1, &VideoPipeline::newFrame, videoItem1, &VideoRenderer::updateFrame);
+        QObject::connect(pipeline2, &VideoPipeline::newFrame, videoItem2, &VideoRenderer::updateFrame);
 
         QTimer::singleShot(100, [=]() {
-            pipeline1->setVideoItem(videoItem1);
-            pipeline2->setVideoItem(videoItem2);
             pipeline1->start();
             pipeline2->start();
         });
 
         ret = app.exec();
 
-        // Очистка ресурсов
         pipeline1->stop();
         pipeline2->stop();
         delete pipeline1;
         delete pipeline2;
-
-
     }
 
-    gst_deinit ();
-
+    gst_deinit();
     return ret;
 }
-
