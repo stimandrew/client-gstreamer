@@ -39,7 +39,8 @@ int main(int argc, char *argv[])
 
         VideoPipeline *pipeline1 = new VideoPipeline(5000);
         VideoPipeline *pipeline2 = new VideoPipeline(5001);
-        if (!pipeline1->initialize() || !pipeline2->initialize()) {
+        VideoPipeline *pipeline3 = new VideoPipeline(5002);
+        if (!pipeline1->initialize() || !pipeline2->initialize() || !pipeline3->initialize()) {
             qWarning("Ошибка инициализации pipeline!");
             return -1;
         }
@@ -50,21 +51,26 @@ int main(int argc, char *argv[])
         QQuickWindow *rootObject = static_cast<QQuickWindow*>(engine.rootObjects().first());
         VideoRenderer *videoItem1 = rootObject->findChild<VideoRenderer*>("videoItem1");
         VideoRenderer *videoItem2 = rootObject->findChild<VideoRenderer*>("videoItem2");
+        VideoRenderer *videoItem3 = rootObject->findChild<VideoRenderer*>("videoItem3");
 
         QObject::connect(pipeline1, &VideoPipeline::newFrame, videoItem1, &VideoRenderer::updateFrame);
         QObject::connect(pipeline2, &VideoPipeline::newFrame, videoItem2, &VideoRenderer::updateFrame);
+        QObject::connect(pipeline3, &VideoPipeline::newFrame, videoItem3, &VideoRenderer::updateFrame);
 
         QTimer::singleShot(100, [=]() {
             pipeline1->start();
             pipeline2->start();
+            pipeline3->start();
         });
 
         ret = app.exec();
 
         pipeline1->stop();
         pipeline2->stop();
+        pipeline3->stop();
         delete pipeline1;
         delete pipeline2;
+        delete pipeline3;
     }
 
     gst_deinit();
