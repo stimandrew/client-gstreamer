@@ -3,8 +3,8 @@
 #include <QQuickWindow>
 #include <QQuickItem>
 #include <QCommandLineParser>
-#include "setplaying.h"
 #include "videopipeline.h"
+#include <QTimer>
 
 
 int main(int argc, char *argv[])
@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
 
     {
         QGuiApplication app(argc, argv);
+
 
         // Настройка парсера командной строки
         QCommandLineParser parser;
@@ -35,30 +36,35 @@ int main(int argc, char *argv[])
 
         QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 
-        VideoPipeline pipeline(parser.value(portOption).toInt());
-
-        if (!pipeline.initialize()) {
+        VideoPipeline *pipeline1 = new VideoPipeline(5000);
+        VideoPipeline *pipeline2 = new VideoPipeline(5001);
+        if (!pipeline1->initialize() || !pipeline2->initialize()) {
             g_printerr("Ошибка инициализации pipeline!\n");
             return -1;
         }
 
+
         QQmlApplicationEngine engine;
         engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
 
-        QQuickItem *videoItem;
-        QQuickWindow *rootObject;
+        QQuickWindow *rootObject = static_cast<QQuickWindow*>(engine.rootObjects().first());
+        QQuickItem *videoItem1 = rootObject->findChild<QQuickItem*>("videoItem1");
+        QQuickItem *videoItem2 = rootObject->findChild<QQuickItem*>("videoItem2");
 
-
-        rootObject = static_cast<QQuickWindow *> (engine.rootObjects().first());
-        videoItem = rootObject->findChild<QQuickItem *> ("videoItem");
-
-        pipeline.setVideoItem(videoItem);
-        rootObject->scheduleRenderJob(pipeline.createSetPlayingJob(),
-                                      QQuickWindow::BeforeSynchronizingStage);
-
-
+        QTimer::singleShot(100, [=]() {
+            pipeline1->setVideoItem(videoItem1);
+            pipeline2->setVideoItem(videoItem2);
+            pipeline1->start();
+            pipeline2->start();
+        });
 
         ret = app.exec();
+
+        // Очистка ресурсов
+        pipeline1->stop();
+        pipeline2->stop();
+        delete pipeline1;
+        delete pipeline2;
 
 
     }

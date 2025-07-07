@@ -13,7 +13,7 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Widgets Quick)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Quick)
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-video-1.0)
+pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-video-1.0 gstreamer-app-1.0)
 
 set(PROJECT_SOURCES
         main.cpp
@@ -24,7 +24,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(client-gstreamer
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-        setplaying.h setplaying.cpp
+
         videopipeline.h videopipeline.cpp
     )
 # Define target properties for Android with Qt 6 as:

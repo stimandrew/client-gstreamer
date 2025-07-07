@@ -1,21 +1,59 @@
 #include "videopipeline.h"
 #include <QQuickItem>
+#include <QQuickWindow>
 #include <gst/gst.h>
 
-VideoPipeline::VideoPipeline(int port, QObject *parent) : QObject(parent), m_port(port) {}
+VideoPipeline::VideoPipeline(int port, QObject *parent)
+    : QObject(parent), m_port(port)
+{
+    workerThread = new QThread(this);
+    moveToThread(workerThread);
+    workerThread->start();
+}
 
 VideoPipeline::~VideoPipeline()
 {
     stop();
-    if (pipeline) {
-        gst_object_unref(pipeline);
+    if (glContext) {
+        glContext->makeCurrent(surface);
+        glContext->doneCurrent();
+        delete glContext;
     }
+    if (surface) {
+        delete surface;
+    }
+    workerThread->quit();
+    workerThread->wait();
 }
 
 bool VideoPipeline::initialize()
 {
-    pipeline = gst_pipeline_new("video-pipeline");
+    // Инициализация OpenGL контекста с правильными параметрами
+    QSurfaceFormat format;
+    format.setRenderableType(QSurfaceFormat::OpenGLES);
+    format.setVersion(2, 0);
+    format.setProfile(QSurfaceFormat::NoProfile);
+    format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
 
+    glContext = new QOpenGLContext();
+    glContext->setFormat(format);
+
+    if (!glContext->create()) {
+        qWarning("Failed to create OpenGL context");
+        return false;
+    }
+
+    surface = new QOffscreenSurface();
+    surface->setFormat(glContext->format());
+    surface->create();
+
+    // Инициализация GStreamer GL
+    if (!gst_is_initialized()) {
+        gst_init(nullptr, nullptr);
+    }
+
+    // Создаем элементы pipeline с проверкой
+    pipeline = gst_pipeline_new("video-pipeline");
     // Создаем элементы pipeline
     GstElement *src = gst_element_factory_make("udpsrc", nullptr);
     GstElement *jitterbuffer = gst_element_factory_make("rtpjitterbuffer", nullptr);
@@ -36,9 +74,25 @@ bool VideoPipeline::initialize()
     g_object_set(src, "port", m_port, // Используем переданный порт
                  "caps", gst_caps_from_string("application/x-rtp,media=video,encoding-name=H264"),
                  nullptr);
-    g_object_set(jitterbuffer, "latency", 200, nullptr);
-    g_object_set(queue, "max-size-buffers", 3, nullptr);
-    g_object_set(sink, "sync", FALSE, nullptr);
+    g_object_set(jitterbuffer,
+                 "latency", 200,
+                 "do-lost", TRUE,
+                 "drop-on-latency", TRUE,
+                 nullptr);
+
+    g_object_set(queue,
+                 "max-size-buffers", 2,
+                 "max-size-time", 0,
+                 "max-size-bytes", 0,
+                 "leaky", 2, // 2 = downstream
+                 nullptr);
+
+    g_object_set(sink,
+                 "sync", FALSE,
+                 "async", FALSE,
+                 "max-lateness", -1,
+                 "qos", FALSE,
+                 nullptr);
 
     // Добавляем элементы в pipeline
     gst_bin_add_many(GST_BIN(pipeline),
@@ -62,15 +116,19 @@ bool VideoPipeline::initialize()
     return true;
 }
 
-void VideoPipeline::start()
-{
+void VideoPipeline::start() {
+    QMutexLocker locker(&m_pipelineMutex);
     if (pipeline) {
-        gst_element_set_state(pipeline, GST_STATE_PLAYING);
+        gst_element_set_state(pipeline, GST_STATE_READY);
+        GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+        if (ret == GST_STATE_CHANGE_FAILURE) {
+            qWarning("Failed to start pipeline");
+        }
     }
 }
 
-void VideoPipeline::stop()
-{
+void VideoPipeline::stop() {
+    QMutexLocker locker(&m_pipelineMutex);
     if (pipeline) {
         gst_element_set_state(pipeline, GST_STATE_NULL);
     }
@@ -79,11 +137,11 @@ void VideoPipeline::stop()
 void VideoPipeline::setVideoItem(QObject *videoItem)
 {
     if (sink && videoItem) {
-        g_object_set(sink, "widget", videoItem, nullptr);
+        if (glContext->makeCurrent(surface)) {
+            g_object_set(sink, "widget", videoItem, nullptr);
+            glContext->doneCurrent();
+        } else {
+            qWarning("Failed to make OpenGL context current");
+        }
     }
-}
-
-QRunnable* VideoPipeline::createSetPlayingJob()
-{
-    return new SetPlaying(pipeline ? static_cast<GstElement*>(gst_object_ref(pipeline)) : nullptr);
 }

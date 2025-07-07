@@ -8,23 +8,36 @@ import org.freedesktop.gstreamer.Qt6GLVideoItem 1.0
 Window {
     id: window
     visible: true
-    width: 640
+    width: 1280
     height: 480
-    x: 30
-    y: 30
     color: "black"
 
-    Item {
+    Row {
         anchors.fill: parent
+        spacing: 2
 
-        GstGLQt6VideoItem {
-            id: video
-            objectName: "videoItem"
-            anchors.centerIn: parent
-            width: parent.width
+        // Первый видео виджет
+        Item {
+            width: parent.width / 2 - 1
             height: parent.height
+
+            GstGLQt6VideoItem {
+                id: video1
+                objectName: "videoItem1"
+                anchors.fill: parent
+            }
         }
 
+        // Второй видео виджет
+        Item {
+            width: parent.width / 2 - 1
+            height: parent.height
 
+            GstGLQt6VideoItem {
+                id: video2
+                objectName: "videoItem2"
+                anchors.fill: parent
+            }
+        }
     }
 }
