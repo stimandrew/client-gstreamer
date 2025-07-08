@@ -60,12 +60,30 @@ Window {
                         }
                     }
 
-                    Text {
-                        id: textPort1
-                        text: "Port: " + controller1.port
-                        color: "white"
+                    TextField {
+                        id: portInput1
+                        width: 100
                         height: parent.height
-                        verticalAlignment: Text.AlignVCenter
+                        placeholderText: "Port"
+                        text: controller1.port
+                        validator: IntValidator { bottom: 0; top: 65535 }
+                        color: "white"
+                        background: Rectangle { color: "darkgray" }
+                    }
+
+                    Button {
+                        text: "Set Port"
+                        onClicked: {
+                            var newPort = parseInt(portInput1.text);
+                            if (newPort >= 0 && newPort <= 65535) {
+                                controller1.setPort(newPort);
+                                if (controller1.isRunning) {
+                                    controller1.start();
+                                }
+                            } else {
+                                console.log("Invalid port number");
+                            }
+                        }
                     }
                 }
             }
@@ -108,12 +126,26 @@ Window {
                         }
                     }
 
-                    Text {
-                        id: textPort2
-                        text: "Port: " + controller2.port
-                        color: "white"
+                    TextField {
+                        id: portInput2
+                        width: 100
                         height: parent.height
-                        verticalAlignment: Text.AlignVCenter
+                        placeholderText: "Port"
+                        text: controller2.port
+                        validator: IntValidator { bottom: 0; top: 65535 }
+                        color: "white"
+                        background: Rectangle { color: "darkgray" }
+                    }
+
+                    Button {
+                        text: "Set Port"
+                        onClicked: {
+                            controller2.setPort(parseInt(portInput2.text));
+                            if (controller2.isRunning) {
+                                controller2.stop();
+                                controller2.start();
+                            }
+                        }
                     }
                 }
             }
@@ -158,12 +190,26 @@ Window {
                     }
                 }
 
-                Text {
-                    id: textPort3
-                    text: "Port: " + controller3.port
-                    color: "white"
+                TextField {
+                    id: portInput3
+                    width: 100
                     height: parent.height
-                    verticalAlignment: Text.AlignVCenter
+                    placeholderText: "Port"
+                    text: controller3.port
+                    validator: IntValidator { bottom: 0; top: 65535 }
+                    color: "white"
+                    background: Rectangle { color: "darkgray" }
+                }
+
+                Button {
+                    text: "Set Port"
+                    onClicked: {
+                        controller3.setPort(parseInt(portInput3.text));
+                        if (controller3.isRunning) {
+                            controller3.stop();
+                            controller3.start();
+                        }
+                    }
                 }
             }
         }

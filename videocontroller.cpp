@@ -24,6 +24,7 @@ int VideoController::port() const
 void VideoController::setPort(int port)
 {
     if (m_port != port) {
+        resetPipeline();
         m_port = port;
         emit portChanged(port);
     }
@@ -49,9 +50,17 @@ void VideoController::start()
 
 void VideoController::stop()
 {
+    resetPipeline();
+}
+
+void VideoController::resetPipeline()
+{
     if (m_pipeline) {
         m_pipeline->stop();
+        delete m_pipeline;
+        m_pipeline = nullptr;
         m_isRunning = false;
         emit isRunningChanged(false);
     }
 }
+

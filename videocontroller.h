@@ -15,7 +15,7 @@ public:
 
     bool isRunning() const;
     int port() const;
-    void setPort(int port);
+    Q_INVOKABLE void setPort(int port);
 
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
@@ -29,4 +29,5 @@ private:
     VideoPipeline *m_pipeline = nullptr;
     int m_port = 0;
     bool m_isRunning = false;
+    void resetPipeline();
 };
