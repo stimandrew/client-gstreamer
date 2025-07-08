@@ -6,7 +6,7 @@ Window {
     id: window
     visible: true
     width: 1280
-    height: 720  // Увеличиваем высоту окна, чтобы вместить три видео
+    height: 720
     color: "black"
 
     Column {
@@ -15,45 +15,44 @@ Window {
 
         // Верхний ряд (первые два видео)
         Row {
-            width: parent.width
-            height: parent.height / 2 - 1
-            spacing: 2
+                    width: parent.width
+                    height: parent.height / 2 - 1
+                    spacing: 2
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    // Первый видео виджет
+                    VideoRenderer {
+                        id: video1
+                        objectName: "videoItem1"
+                        width: parent.width / 2 - 1
+                        height: parent.height
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                    }
 
-            // Первый видео виджет
-            Item {
-                width: parent.width / 2 - 1
-                height: parent.height
-
-                VideoRenderer {
-                    id: video1
-                    objectName: "videoItem1"
-                    anchors.fill: parent
-                }
+                    // Второй видео виджет
+                    VideoRenderer {
+                        id: video2
+                        objectName: "videoItem2"
+                        width: parent.width / 2 - 1
+                        height: parent.height
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.right: parent.right
+                    }
             }
 
-            // Второй видео виджет
-            Item {
-                width: parent.width / 2 - 1
-                height: parent.height
+        Row {
+                    width: parent.width
+                    height: parent.height / 2 - 1
+                    spacing: 2
 
-                VideoRenderer {
-                    id: video2
-                    objectName: "videoItem2"
-                    anchors.fill: parent
-                }
+                    // Третий видео виджет
+                    VideoRenderer {
+                        id: video3
+                        objectName: "videoItem3"
+                        width: parent.width / 2 - 1
+                        height: parent.height
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
             }
-        }
-
-        // Нижний ряд (третье видео)
-        Item {
-            width: parent.width / 2 - 1  // Ширина как у одного из верхних видео
-            height: parent.height / 2 - 1
-
-            VideoRenderer {
-                id: video3
-                objectName: "videoItem3"
-                anchors.fill: parent
-            }
-        }
     }
 }
