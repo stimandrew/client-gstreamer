@@ -27,6 +27,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
 
         videopipeline.h videopipeline.cpp
         videorenderer.h videorenderer.cpp
+        videocontroller.h videocontroller.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET client-gstreamer APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
