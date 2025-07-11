@@ -1,0 +1,53 @@
+ab@ab-orangepi5b:~$ dmesg | grep rga
+[   26.702286] rockchip-pm-domain fd8d8000.power-management:power-controller: Looking up rga30-supply from device tree
+[   26.702313] rockchip-pm-domain fd8d8000.power-management:power-controller: Looking up rga30-supply property in node /power-management@fd8d8000/power-controller failed
+[   26.702704] rockchip-pm-domain fd8d8000.power-management:power-controller: Looking up rga31-supply from device tree
+[   26.702725] rockchip-pm-domain fd8d8000.power-management:power-controller: Looking up rga31-supply property in node /power-management@fd8d8000/power-controller failed
+[   27.415808] rga3 fdb60000.rga: Adding to iommu group 2
+[   27.416124] rga3 fdb60000.rga: probe successfully, irq = 41, hw_version:3.0.76831
+[   27.416193] rga3 fdb70000.rga: Adding to iommu group 3
+[   27.416405] rga3 fdb70000.rga: probe successfully, irq = 42, hw_version:3.0.76831
+[   27.416842] rga2 fdb80000.rga: probe successfully, irq = 104, hw_version:3.2.63318
+[   27.416938] rga_iommu: IOMMU binding successfully, default mapping core[0x1]
+[   27.417100] rga: Module initialized. v1.3.4
+[  459.734187] rga_mm: rga_mm_get_channel_external_buffer dma_buf_get fail fd[65535]
+[  459.734206] rga_mm: Cannot get src0 channel buffer!
+[  459.734209] rga_mm: failed to get external buffer from job_cmd!
+[  459.734213] rga_mm: failed to map buffer
+[  459.734217] rga_job: rga_job_commit: failed to map job info
+[  459.734251] rga_job: request[2] task[0] job_commit failed.
+[  459.734257] rga_job: rga request[2] commit failed!
+[  459.734260] rga: request[2] submit failed!
+[ 1748.737218] rga_mm: rga_mm_get_channel_external_buffer dma_buf_get fail fd[65535]
+[ 1748.737237] rga_mm: Cannot get src0 channel buffer!
+[ 1748.737241] rga_mm: failed to get external buffer from job_cmd!
+[ 1748.737245] rga_mm: failed to map buffer
+[ 1748.737248] rga_job: rga_job_commit: failed to map job info
+[ 1748.737291] rga_job: request[3] task[0] job_commit failed.
+[ 1748.737297] rga_job: rga request[3] commit failed!
+[ 1748.737300] rga: request[3] submit failed!
+[ 1857.897657] rga_mm: rga_mm_get_channel_external_buffer dma_buf_get fail fd[65535]
+[ 1857.897695] rga_mm: Cannot get src0 channel buffer!
+[ 1857.897704] rga_mm: failed to get external buffer from job_cmd!
+[ 1857.897713] rga_mm: failed to map buffer
+[ 1857.897721] rga_job: rga_job_commit: failed to map job info
+[ 1857.897811] rga_job: request[4] task[0] job_commit failed.
+[ 1857.897826] rga_job: rga request[4] commit failed!
+[ 1857.897836] rga: request[4] submit failed!
+[ 1915.901641] rga_mm: rga_mm_get_channel_external_buffer dma_buf_get fail fd[65535]
+[ 1915.901678] rga_mm: Cannot get src0 channel buffer!
+[ 1915.901687] rga_mm: failed to get external buffer from job_cmd!
+[ 1915.901697] rga_mm: failed to map buffer
+[ 1915.901705] rga_job: rga_job_commit: failed to map job info
+[ 1915.901798] rga_job: request[5] task[0] job_commit failed.
+[ 1915.901814] rga_job: rga request[5] commit failed!
+[ 1915.901824] rga: request[5] submit failed!
+[ 2286.504792] rga_mm: rga_mm_get_channel_external_buffer dma_buf_get fail fd[65535]
+[ 2286.504813] rga_mm: Cannot get src0 channel buffer!
+[ 2286.504817] rga_mm: failed to get external buffer from job_cmd!
+[ 2286.504821] rga_mm: failed to map buffer
+[ 2286.504824] rga_job: rga_job_commit: failed to map job info
+[ 2286.504881] rga_job: request[6] task[0] job_commit failed.
+[ 2286.504887] rga_job: rga request[6] commit failed!
+[ 2286.504890] rga: request[6] submit failed!
+ab@ab-orangepi5b:~$ 

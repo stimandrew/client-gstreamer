@@ -1,13 +1,11 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include <QQmlContext> // Добавлено для работы с rootContext
+#include <QQmlContext>
 #include <QQuickWindow>
 #include <QQuickItem>
-#include <QCommandLineParser>
+#include <gst/gst.h>
 #include "videorenderer.h"
 #include "videocontroller.h"
-#include <QTimer>
-#include <gst/gst.h>
 
 int main(int argc, char *argv[])
 {
@@ -52,8 +50,11 @@ int main(int argc, char *argv[])
 
         if (videoItem1 && videoItem2 && videoItem3) {
             QObject::connect(controller1, &VideoController::newFrame, videoItem1, &VideoRenderer::updateFrame);
+            QObject::connect(controller1, &VideoController::newObjects, videoItem1, &VideoRenderer::updateObjects);
             QObject::connect(controller2, &VideoController::newFrame, videoItem2, &VideoRenderer::updateFrame);
+            QObject::connect(controller2, &VideoController::newObjects, videoItem2, &VideoRenderer::updateObjects);
             QObject::connect(controller3, &VideoController::newFrame, videoItem3, &VideoRenderer::updateFrame);
+            QObject::connect(controller3, &VideoController::newObjects, videoItem3, &VideoRenderer::updateObjects);
         } else {
             qWarning() << "Failed to find video items";
         }

@@ -1,13 +1,24 @@
 #include "videopipeline.h"
 #include <QDebug>
 #include <gst/app/gstappsink.h>
+#include "utils/common.h"
+#include "utils/image_utils.h"
+#include "utils/image_drawing.h"
+#include <QPainter>
 
 VideoPipeline::VideoPipeline(int port, QObject *parent)
     : QObject(parent), m_port(port)
 {
-    workerThread = new QThread(this);
+    workerThread = new QThread();
     moveToThread(workerThread);
     workerThread->start();
+
+    m_yoloProcessor = new YOLO11Processor();
+    yoloThread = new QThread();
+    m_yoloProcessor->moveToThread(yoloThread);
+    connect(m_yoloProcessor, &YOLO11Processor::objectsDetected,
+            this, &VideoPipeline::newObjects);
+    yoloThread->start();
 }
 
 VideoPipeline::~VideoPipeline()
@@ -15,6 +26,23 @@ VideoPipeline::~VideoPipeline()
     stop();
     workerThread->quit();
     workerThread->wait();
+    yoloThread->quit();
+    yoloThread->wait();
+    delete m_yoloProcessor;
+}
+
+void VideoPipeline::setYoloEnabled(bool enabled) {
+    QMutexLocker locker(&m_pipelineMutex);
+    m_yoloEnabled = enabled && m_yoloInitialized;
+}
+
+void VideoPipeline::setYoloModelPath(const QString& path) {
+    QMutexLocker locker(&m_pipelineMutex);
+    m_yoloInitialized = m_yoloProcessor->initialize(path.toStdString().c_str());
+    if (!m_yoloInitialized) {
+        qWarning() << "Failed to initialize YOLO model";
+        m_yoloEnabled = false;
+    }
 }
 
 bool VideoPipeline::initialize()
@@ -37,7 +65,6 @@ bool VideoPipeline::initialize()
         return false;
     }
 
-    // Настройка элементов
     g_object_set(src, "port", m_port,
                  "caps", gst_caps_from_string("application/x-rtp,media=video,encoding-name=H264"),
                  nullptr);
@@ -54,21 +81,20 @@ bool VideoPipeline::initialize()
                  "leaky", 2,
                  nullptr);
 
-    // Настройка caps для вывода в RGB формате
     GstCaps *caps = gst_caps_new_simple("video/x-raw",
                                         "format", G_TYPE_STRING, "RGBA",
                                         nullptr);
     g_object_set(capsfilter, "caps", caps, nullptr);
     gst_caps_unref(caps);
 
-    // Настройка appsink
     g_object_set(sink,
                  "emit-signals", TRUE,
                  "sync", FALSE,
+                 "max-buffers", 1,
+                 "drop", TRUE,
                  nullptr);
     g_signal_connect(sink, "new-sample", G_CALLBACK(newSampleCallback), this);
 
-    // Добавляем элементы в pipeline
     gst_bin_add_many(GST_BIN(pipeline),
                      src,
                      jitterbuffer,
@@ -82,7 +108,6 @@ bool VideoPipeline::initialize()
                      sink,
                      nullptr);
 
-    // Соединяем элементы
     if (!gst_element_link_many(src, jitterbuffer, rtpdepay, parse, identity, decoder,
                                queue, convert, capsfilter, sink, nullptr)) {
         qWarning() << "Failed to link elements";
@@ -110,6 +135,9 @@ void VideoPipeline::stop()
     if (pipeline) {
         gst_element_set_state(pipeline, GST_STATE_NULL);
     }
+    queueMutex.lock();
+    frameQueue.clear();
+    queueMutex.unlock();
 }
 
 GstFlowReturn VideoPipeline::newSampleCallback(GstElement *sink, gpointer data)
@@ -119,8 +147,8 @@ GstFlowReturn VideoPipeline::newSampleCallback(GstElement *sink, gpointer data)
     return pipeline->handleSample(sample);
 }
 
-GstFlowReturn VideoPipeline::handleSample(GstSample *sample)
-{
+GstFlowReturn VideoPipeline::handleSample(GstSample *sample) {
+
     GstBuffer *buffer = gst_sample_get_buffer(sample);
     GstCaps *caps = gst_sample_get_caps(sample);
     GstStructure *structure = gst_caps_get_structure(caps, 0);
@@ -133,19 +161,55 @@ GstFlowReturn VideoPipeline::handleSample(GstSample *sample)
     format = gst_structure_get_string(structure, "format");
 
     GstMapInfo map;
+
+
     if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
-        QImage image;
+
+
+        QImage inputImage;
         if (format && strcmp(format, "NV12") == 0) {
             // Handle NV12 format
-            image = QImage(map.data, width, height, QImage::Format_RGBA8888);
+            inputImage = QImage(map.data, width, height, QImage::Format_RGBA8888);
         } else {
             // Fallback to RGB (you might need to add conversion)
-            image = QImage(map.data, width, height, QImage::Format_RGBA8888);
+            inputImage = QImage(map.data, width, height, QImage::Format_RGBA8888);
         }
-        emit newFrame(image.copy());
+        emit newFrame(inputImage.copy());
+
+        if (m_yoloEnabled && m_yoloInitialized) {
+            // 1. Конвертируем в RGB
+            QImage yoloFrame = inputImage.convertToFormat(QImage::Format_RGB888);
+
+            // 2. Масштабируем с сохранением пропорций
+            float scale = qMin(640.0f / yoloFrame.width(), 640.0f / yoloFrame.height());
+            int newWidth = yoloFrame.width() * scale;
+            int newHeight = yoloFrame.height() * scale;
+            yoloFrame = yoloFrame.scaled(newWidth, newHeight, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+
+            // 3. Создаем изображение 640x640 с серой заливкой (114, 114, 114)
+            QImage paddedImage(640, 640, QImage::Format_RGB888);
+            paddedImage.fill(QColor(114, 114, 114));
+
+            // 4. Центрируем масштабированное изображение
+            QPainter painter(&paddedImage);
+            int xOffset = (640 - yoloFrame.width()) / 2;
+            int yOffset = (640 - yoloFrame.height()) / 2;
+            painter.drawImage(xOffset, yOffset, yoloFrame);
+            painter.end();
+
+            // 5. Конвертируем данные в формат, ожидаемый моделью (NHWC)
+            QImage finalImage = paddedImage.convertToFormat(QImage::Format_RGB888);
+
+            // Отправляем на обработку в YOLO
+            QMetaObject::invokeMethod(m_yoloProcessor, "processFrame",
+                                      Qt::QueuedConnection,
+                                      Q_ARG(QImage, finalImage));
+
+            m_firstFrameProcessed = true;
+        }
+
         gst_buffer_unmap(buffer, &map);
     }
-
     gst_sample_unref(sample);
     return GST_FLOW_OK;
 }

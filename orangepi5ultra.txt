@@ -1,0 +1,12 @@
+ab@ab-orangepi5ultra:/tmp/bin$ dmesg | grep rga
+[    5.951658] rockchip-pm-domain fd8d8000.power-management:power-controller: Looking up rga30-supply from device tree
+[    5.951686] rockchip-pm-domain fd8d8000.power-management:power-controller: Looking up rga30-supply property in node /power-management@fd8d8000/power-controller failed
+[    5.952085] rockchip-pm-domain fd8d8000.power-management:power-controller: Looking up rga31-supply from device tree
+[    5.952107] rockchip-pm-domain fd8d8000.power-management:power-controller: Looking up rga31-supply property in node /power-management@fd8d8000/power-controller failed
+[   23.035728] rga3 fdb60000.rga: Adding to iommu group 2
+[   23.036047] rga3 fdb60000.rga: probe successfully, irq = 51, hw_version:3.0.76831
+[   23.036110] rga3 fdb70000.rga: Adding to iommu group 3
+[   23.036307] rga3 fdb70000.rga: probe successfully, irq = 52, hw_version:3.0.76831
+[   23.036729] rga2 fdb80000.rga: probe successfully, irq = 152, hw_version:3.2.63318
+[   23.036815] rga_iommu: IOMMU binding successfully, default mapping core[0x1]
+[   23.036929] rga: Module initialized. v1.3.4
