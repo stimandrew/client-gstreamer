@@ -7,6 +7,8 @@
 #include <QQueue>
 #include <gst/gst.h>
 #include "yolo11.h"
+#include "utils/common.h"
+#include "utils/image_utils.h"
 
 class VideoPipeline : public QObject
 {
@@ -28,6 +30,7 @@ signals:
 private:
     static GstFlowReturn newSampleCallback(GstElement *sink, gpointer data);
     GstFlowReturn handleSample(GstSample *sample);
+    void processFrameWithRGA(const QImage &frame);
 
     GstElement *pipeline = nullptr;
     GstElement *sink = nullptr;

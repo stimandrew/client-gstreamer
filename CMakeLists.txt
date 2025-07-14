@@ -13,8 +13,6 @@ set(rknpu_yolo11_file rknpu2/yolo11.cpp)
 
 set(CMAKE_INSTALL_PREFIX /home/ab/client)
 
-link_directories(${CMAKE_INSTALL_LIBDIR})
-
 include_directories(./include)
 
 add_library(rknnrt SHARED IMPORTED )

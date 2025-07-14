@@ -124,27 +124,27 @@ void YOLO11Processor::release() {
 }
 
 bool YOLO11Processor::convertQImageToImageBuffer(const QImage& qimage, image_buffer_t* src_image) {
-    if (qimage.format() != QImage::Format_RGB888 ||
-        qimage.width() != 640 ||
-        qimage.height() != 640) {
+    if (qimage.format() != QImage::Format_RGB888) {
+        qWarning() << "Invalid image format, expected RGB888";
         return false;
     }
 
-    // Выделяем память для буфера
-    src_image->width = 640;
-    src_image->height = 640;
+    src_image->width = qimage.width();
+    src_image->height = qimage.height();
     src_image->format = IMAGE_FORMAT_RGB888;
-    src_image->size = 640 * 640 * 3;
-    src_image->virt_addr = (unsigned char*)malloc(src_image->size);
+    src_image->size = qimage.width() * qimage.height() * 3;
+    src_image->virt_addr = static_cast<unsigned char*>(malloc(src_image->size));
 
     if (!src_image->virt_addr) {
+        qWarning() << "Failed to allocate image buffer";
         return false;
     }
 
-    // Копируем данные с учетом возможного выравнивания строк в QImage
-    for (int y = 0; y < 640; y++) {
+    // Копирование данных с учетом возможного выравнивания строк
+    for (int y = 0; y < qimage.height(); y++) {
         const uchar* scanLine = qimage.scanLine(y);
-        memcpy((uchar*)src_image->virt_addr + y * 640 * 3, scanLine, 640 * 3);
+        memcpy(src_image->virt_addr + y * qimage.width() * 3,
+               scanLine, qimage.width() * 3);
     }
 
     return true;

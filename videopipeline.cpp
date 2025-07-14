@@ -161,55 +161,79 @@ GstFlowReturn VideoPipeline::handleSample(GstSample *sample) {
     format = gst_structure_get_string(structure, "format");
 
     GstMapInfo map;
-
-
     if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
-
-
-        QImage inputImage;
+        QImage image;
         if (format && strcmp(format, "NV12") == 0) {
             // Handle NV12 format
-            inputImage = QImage(map.data, width, height, QImage::Format_RGBA8888);
+            image = QImage(map.data, width, height, QImage::Format_RGBA8888);
         } else {
             // Fallback to RGB (you might need to add conversion)
-            inputImage = QImage(map.data, width, height, QImage::Format_RGBA8888);
+            image = QImage(map.data, width, height, QImage::Format_RGBA8888);
         }
-        emit newFrame(inputImage.copy());
+        emit newFrame(image.copy());
 
-        if (m_yoloEnabled && m_yoloInitialized) {
-            // 1. Конвертируем в RGB
-            QImage yoloFrame = inputImage.convertToFormat(QImage::Format_RGB888);
-
-            // 2. Масштабируем с сохранением пропорций
-            float scale = qMin(640.0f / yoloFrame.width(), 640.0f / yoloFrame.height());
-            int newWidth = yoloFrame.width() * scale;
-            int newHeight = yoloFrame.height() * scale;
-            yoloFrame = yoloFrame.scaled(newWidth, newHeight, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-
-            // 3. Создаем изображение 640x640 с серой заливкой (114, 114, 114)
-            QImage paddedImage(640, 640, QImage::Format_RGB888);
-            paddedImage.fill(QColor(114, 114, 114));
-
-            // 4. Центрируем масштабированное изображение
-            QPainter painter(&paddedImage);
-            int xOffset = (640 - yoloFrame.width()) / 2;
-            int yOffset = (640 - yoloFrame.height()) / 2;
-            painter.drawImage(xOffset, yOffset, yoloFrame);
-            painter.end();
-
-            // 5. Конвертируем данные в формат, ожидаемый моделью (NHWC)
-            QImage finalImage = paddedImage.convertToFormat(QImage::Format_RGB888);
-
-            // Отправляем на обработку в YOLO
-            QMetaObject::invokeMethod(m_yoloProcessor, "processFrame",
-                                      Qt::QueuedConnection,
-                                      Q_ARG(QImage, finalImage));
-
+        if (m_yoloEnabled && m_yoloInitialized && !m_firstFrameProcessed) {
+            processFrameWithRGA(image);
             m_firstFrameProcessed = true;
         }
 
         gst_buffer_unmap(buffer, &map);
     }
+
     gst_sample_unref(sample);
     return GST_FLOW_OK;
+}
+
+void VideoPipeline::processFrameWithRGA(const QImage &frame)
+{
+    // Конвертируем в RGB888 и выравниваем размеры
+    QImage rgbFrame = frame.convertToFormat(QImage::Format_RGB888);
+
+
+    if (rgbFrame.isNull()) {
+        qWarning() << "Failed to convert frame to RGB888";
+        return;
+    }
+
+    image_buffer_t src_img;
+    src_img.width = rgbFrame.width();
+    src_img.height = rgbFrame.height();
+    src_img.format = IMAGE_FORMAT_RGB888;
+    src_img.size = rgbFrame.sizeInBytes();
+    src_img.virt_addr = const_cast<unsigned char*>(rgbFrame.bits());
+
+    image_buffer_t dst_img;
+    dst_img.width = 640;
+    dst_img.height = 640;
+    dst_img.format = IMAGE_FORMAT_RGB888;
+    dst_img.size = 640 * 640 * 3;
+    dst_img.virt_addr = static_cast<unsigned char*>(malloc(dst_img.size));
+
+    qDebug() << "Source image:" << src_img.width << "x" << src_img.height
+             << "format:" << src_img.format;
+    qDebug() << "Destination image:" << dst_img.width << "x" << dst_img.height
+             << "format:" << dst_img.format;
+
+    if (!dst_img.virt_addr) {
+        qWarning() << "Failed to allocate memory for YOLO input";
+        return;
+    }
+
+    // Заполняем фон серым цветом (114) перед обработкой
+    memset(dst_img.virt_addr, 114, dst_img.size);
+
+    letterbox_t letter_box;
+    int ret = convert_image_with_letterbox(&src_img, &dst_img, &letter_box, 114);
+    if (ret != 0) {
+        qWarning() << "RGA image conversion failed:" << ret;
+        free(dst_img.virt_addr);
+        return;
+    }
+
+    QImage yoloImage(dst_img.virt_addr, dst_img.width, dst_img.height,
+                     QImage::Format_RGB888, [](void *ptr){ free(ptr); }, dst_img.virt_addr);
+
+    QMetaObject::invokeMethod(m_yoloProcessor, "processFrame",
+                              Qt::QueuedConnection,
+                              Q_ARG(QImage, yoloImage.copy()));
 }
