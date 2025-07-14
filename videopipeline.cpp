@@ -1,10 +1,9 @@
 #include "videopipeline.h"
 #include <QDebug>
 #include <gst/app/gstappsink.h>
-#include "utils/common.h"
-#include "utils/image_utils.h"
-#include "utils/image_drawing.h"
 #include <QPainter>
+#include <QDir>
+#include <QDateTime>
 
 VideoPipeline::VideoPipeline(int port, QObject *parent)
     : QObject(parent), m_port(port)
@@ -13,22 +12,22 @@ VideoPipeline::VideoPipeline(int port, QObject *parent)
     moveToThread(workerThread);
     workerThread->start();
 
-    m_yoloProcessor = new YOLO11Processor();
     yoloThread = new QThread();
-    m_yoloProcessor->moveToThread(yoloThread);
-    connect(m_yoloProcessor, &YOLO11Processor::objectsDetected,
-            this, &VideoPipeline::newObjects);
+    QObject::connect(yoloThread, &QThread::finished, yoloThread, &QObject::deleteLater);
     yoloThread->start();
+
 }
 
 VideoPipeline::~VideoPipeline()
 {
     stop();
+    if (m_yoloInitialized) {
+        release_yolo11_model(&m_rknnAppCtx);
+    }
     workerThread->quit();
     workerThread->wait();
     yoloThread->quit();
     yoloThread->wait();
-    delete m_yoloProcessor;
 }
 
 void VideoPipeline::setYoloEnabled(bool enabled) {
@@ -38,10 +37,16 @@ void VideoPipeline::setYoloEnabled(bool enabled) {
 
 void VideoPipeline::setYoloModelPath(const QString& path) {
     QMutexLocker locker(&m_pipelineMutex);
-    m_yoloInitialized = m_yoloProcessor->initialize(path.toStdString().c_str());
-    if (!m_yoloInitialized) {
-        qWarning() << "Failed to initialize YOLO model";
-        m_yoloEnabled = false;
+    if (!path.isEmpty()) {
+        int ret = init_yolo11_model(path.toStdString().c_str(), &m_rknnAppCtx);
+        if (ret != 0) {
+            qWarning() << "Failed to initialize YOLO model";
+            m_yoloInitialized = false;
+            m_yoloEnabled = false;
+        } else {
+            m_yoloInitialized = true;
+            m_yoloEnabled = true;
+        }
     }
 }
 
@@ -186,54 +191,70 @@ GstFlowReturn VideoPipeline::handleSample(GstSample *sample) {
 
 void VideoPipeline::processFrameWithRGA(const QImage &frame)
 {
-    // Конвертируем в RGB888 и выравниваем размеры
-    QImage rgbFrame = frame.convertToFormat(QImage::Format_RGB888);
-
-
-    if (rgbFrame.isNull()) {
-        qWarning() << "Failed to convert frame to RGB888";
+    if (!m_yoloInitialized) {
+        qWarning() << "YOLO model not initialized";
         return;
     }
 
-    image_buffer_t src_img;
-    src_img.width = rgbFrame.width();
-    src_img.height = rgbFrame.height();
-    src_img.format = IMAGE_FORMAT_RGB888;
-    src_img.size = rgbFrame.sizeInBytes();
-    src_img.virt_addr = const_cast<unsigned char*>(rgbFrame.bits());
+    image_buffer_t src_image;
+    memset(&src_image, 0, sizeof(image_buffer_t));
 
-    image_buffer_t dst_img;
-    dst_img.width = 640;
-    dst_img.height = 640;
-    dst_img.format = IMAGE_FORMAT_RGB888;
-    dst_img.size = 640 * 640 * 3;
-    dst_img.virt_addr = static_cast<unsigned char*>(malloc(dst_img.size));
+    QImage converted = frame.convertToFormat(QImage::Format_RGB888);
+    src_image.width = converted.width();
+    src_image.height = converted.height();
+    src_image.format = IMAGE_FORMAT_RGB888;
+    src_image.size = converted.width() * converted.height() * 3;
+    src_image.virt_addr = (unsigned char*)malloc(src_image.size);
+    memcpy(src_image.virt_addr, converted.bits(), src_image.size);
 
-    qDebug() << "Source image:" << src_img.width << "x" << src_img.height
-             << "format:" << src_img.format;
-    qDebug() << "Destination image:" << dst_img.width << "x" << dst_img.height
-             << "format:" << dst_img.format;
+    object_detect_result_list od_results;
+    memset(&od_results, 0, sizeof(od_results));
 
-    if (!dst_img.virt_addr) {
-        qWarning() << "Failed to allocate memory for YOLO input";
-        return;
-    }
-
-    // Заполняем фон серым цветом (114) перед обработкой
-    memset(dst_img.virt_addr, 114, dst_img.size);
-
-    letterbox_t letter_box;
-    int ret = convert_image_with_letterbox(&src_img, &dst_img, &letter_box, 114);
+    int ret = inference_yolo11_model(&m_rknnAppCtx, &src_image, &od_results);
     if (ret != 0) {
-        qWarning() << "RGA image conversion failed:" << ret;
-        free(dst_img.virt_addr);
+        qWarning() << "YOLO inference failed";
+        free(src_image.virt_addr);
         return;
     }
 
-    QImage yoloImage(dst_img.virt_addr, dst_img.width, dst_img.height,
-                     QImage::Format_RGB888, [](void *ptr){ free(ptr); }, dst_img.virt_addr);
+    // Создаем копию кадра для рисования bounding boxes
+    QImage resultImage = frame.copy();
+    QPainter painter(&resultImage);
+    painter.setPen(QPen(Qt::red, 2));
 
-    QMetaObject::invokeMethod(m_yoloProcessor, "processFrame",
-                              Qt::QueuedConnection,
-                              Q_ARG(QImage, yoloImage.copy()));
+    QList<QRect> objects;
+    for (int i = 0; i < od_results.count; i++) {
+        object_detect_result *det_result = &(od_results.results[i]);
+        QRect rect(
+            det_result->box.left,
+            det_result->box.top,
+            det_result->box.right - det_result->box.left,
+            det_result->box.bottom - det_result->box.top
+            );
+        objects.append(rect);
+
+        // Рисуем bounding box на изображении
+        painter.drawRect(rect);
+
+        // Выводим информацию об объекте в консоль
+        qDebug() << "Detected object at:" << rect
+                 << "Class ID:" << det_result->cls_id
+                 << "Confidence:" << det_result->prop;
+    }
+    painter.end();
+
+    // Сохраняем изображение с bounding boxes
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss_zzz");
+    QString outputDir = "detection_results";
+    QDir().mkdir(outputDir); // Создаем директорию, если ее нет
+    QString outputPath = QString("%1/detection_%2.jpg").arg(outputDir).arg(timestamp);
+
+    if (resultImage.save(outputPath, "JPEG")) {
+        qDebug() << "Saved detection results to:" << outputPath;
+    } else {
+        qWarning() << "Failed to save detection results";
+    }
+
+    emit newObjects(objects);
+    free(src_image.virt_addr);
 }

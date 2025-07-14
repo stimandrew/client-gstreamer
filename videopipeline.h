@@ -7,8 +7,6 @@
 #include <QQueue>
 #include <gst/gst.h>
 #include "yolo11.h"
-#include "utils/common.h"
-#include "utils/image_utils.h"
 
 class VideoPipeline : public QObject
 {
@@ -31,6 +29,7 @@ private:
     static GstFlowReturn newSampleCallback(GstElement *sink, gpointer data);
     GstFlowReturn handleSample(GstSample *sample);
     void processFrameWithRGA(const QImage &frame);
+    rknn_app_context_t m_rknnAppCtx;
 
     GstElement *pipeline = nullptr;
     GstElement *sink = nullptr;
@@ -38,7 +37,6 @@ private:
     QThread *workerThread;
     QThread *yoloThread;
     mutable QMutex m_pipelineMutex;
-    YOLO11Processor* m_yoloProcessor = nullptr;
     bool m_yoloEnabled = false;
     bool m_yoloInitialized = false;
     QQueue<QImage> frameQueue;

@@ -9,7 +9,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(rknpu_yolo11_file rknpu2/yolo11.cpp)
+set(rknpu_yolo11_file )
 
 set(CMAKE_INSTALL_PREFIX /home/ab/client)
 
@@ -45,8 +45,12 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         videorenderer.h videorenderer.cpp
         videocontroller.h videocontroller.cpp
 
-        postprocess.cc ${rknpu_yolo11_file}
+        ${rknpu_yolo11_file}
         yolo11.h
+        rknpu2/yolo11.cpp
+        postprocess.h
+        postprocess.cpp
+
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET client-gstreamer APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

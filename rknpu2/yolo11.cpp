@@ -1,3 +1,16 @@
+// Copyright (c) 2024 by Rockchip Electronics Co., Ltd. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,147 +21,6 @@
 #include "common.h"
 #include "file_utils.h"
 #include "image_utils.h"
-#include <QDebug>
-
-YOLO11Processor::YOLO11Processor(QObject *parent) : QObject(parent) {
-    memset(&rknn_app_ctx, 0, sizeof(rknn_app_context_t));
-    init_post_process();
-}
-
-YOLO11Processor::~YOLO11Processor() {
-    QMutexLocker locker(&m_mutex);
-    if (m_initialized) {
-        release_yolo11_model(&rknn_app_ctx);
-    }
-    deinit_post_process();
-}
-
-bool YOLO11Processor::isInitialized() const {
-    QMutexLocker locker(&m_mutex);
-    return m_initialized;
-}
-
-bool YOLO11Processor::initialize(const char* model_path) {
-     QMutexLocker locker(&m_mutex);
-
-    if (m_initialized) {
-        release_yolo11_model(&rknn_app_ctx);
-    }
-
-    int ret = init_yolo11_model(model_path, &rknn_app_ctx);
-    if (ret != 0) {
-        qWarning() << "init_yolo11_model fail! ret=" << ret << "model_path=" << model_path;
-        return false;
-    }
-
-    m_initialized = true;
-    return true;
-}
-
-void YOLO11Processor::processFrame(const QImage& frame) {
-    QMutexLocker locker(&m_mutex);
-
-    if (m_processed) {
-        return;
-    }
-
-    if (!m_initialized) {
-        qWarning() << "YOLO processor not initialized";
-        emit objectsDetected(QList<QRect>(), frame);
-        return;
-    }
-
-    if (frame.isNull()) {
-        qWarning() << "Received null frame";
-        emit objectsDetected(QList<QRect>(), frame);
-        return;
-    }
-
-    // Проверяем размер изображения
-    if (frame.width() < 64 || frame.height() < 64) {
-        qWarning() << "Frame size too small:" << frame.size();
-        emit objectsDetected(QList<QRect>(), frame);
-        return;
-    }
-
-    QImage rgbFrame = frame.convertToFormat(QImage::Format_RGB888);
-    if (rgbFrame.isNull()) {
-        qWarning() << "Failed to convert frame to RGB888";
-        emit objectsDetected(QList<QRect>(), frame);
-        return;
-    }
-
-    object_detect_result_list od_results;
-    memset(&od_results, 0, sizeof(od_results));
-
-    if (processImage(rgbFrame, &od_results)) {
-        QList<QRect> objects;
-        for (int i = 0; i < od_results.count; i++) {
-            auto& res = od_results.results[i];
-            objects.append(QRect(res.box.left, res.box.top,
-                                 res.box.right - res.box.left,
-                                 res.box.bottom - res.box.top));
-        }
-        emit objectsDetected(objects, frame);
-    } else {
-        qWarning() << "Failed to process image with YOLO";
-        emit objectsDetected(QList<QRect>(), frame);
-    }
-
-     m_processed = true;
-}
-
-bool YOLO11Processor::processImage(const QImage& image, object_detect_result_list* od_results) {
-    image_buffer_t src_image;
-    if (!convertQImageToImageBuffer(image, &src_image)) {
-        qWarning() << "Failed to convert QImage to image buffer";
-        return false;
-    }
-
-    int ret = inference_yolo11_model(&rknn_app_ctx, &src_image, od_results);
-    if (ret != 0) {
-        qWarning() << "Failed to process image with YOLO, error code:" << ret;
-        return false;
-    }
-
-    return true;
-}
-
-void YOLO11Processor::release() {
-    QMutexLocker locker(&m_mutex);
-
-    if (m_initialized) {
-        release_yolo11_model(&rknn_app_ctx);
-        m_initialized = false;
-    }
-}
-
-bool YOLO11Processor::convertQImageToImageBuffer(const QImage& qimage, image_buffer_t* src_image) {
-    if (qimage.format() != QImage::Format_RGB888) {
-        qWarning() << "Invalid image format, expected RGB888";
-        return false;
-    }
-
-    src_image->width = qimage.width();
-    src_image->height = qimage.height();
-    src_image->format = IMAGE_FORMAT_RGB888;
-    src_image->size = qimage.width() * qimage.height() * 3;
-    src_image->virt_addr = static_cast<unsigned char*>(malloc(src_image->size));
-
-    if (!src_image->virt_addr) {
-        qWarning() << "Failed to allocate image buffer";
-        return false;
-    }
-
-    // Копирование данных с учетом возможного выравнивания строк
-    for (int y = 0; y < qimage.height(); y++) {
-        const uchar* scanLine = qimage.scanLine(y);
-        memcpy(src_image->virt_addr + y * qimage.width() * 3,
-               scanLine, qimage.width() * 3);
-    }
-
-    return true;
-}
 
 static void dump_tensor_attr(rknn_tensor_attr *attr)
 {

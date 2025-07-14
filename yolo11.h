@@ -1,20 +1,48 @@
-#pragma once
+// Copyright (c) 2024 by Rockchip Electronics Co., Ltd. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+#ifndef _RKNN_DEMO_YOLO11_H_
+#define _RKNN_DEMO_YOLO11_H_
 
 #include "include/rknn_api.h"
 #include "utils/common.h"
-#include <QImage>
-#include <QRect>
-#include <QMutex>
-#include <QObject>
 
-
+#if defined(RV1106_1103) 
+    typedef struct {
+        char *dma_buf_virt_addr;
+        int dma_buf_fd;
+        int size;
+    }rknn_dma_buf;
+#endif
 
 typedef struct {
     rknn_context rknn_ctx;
     rknn_input_output_num io_num;
     rknn_tensor_attr* input_attrs;
     rknn_tensor_attr* output_attrs;
-
+#if defined(RV1106_1103) 
+    rknn_tensor_mem* input_mems[1];
+    rknn_tensor_mem* output_mems[9];
+    rknn_dma_buf img_dma_buf;
+#endif
+#if defined(ZERO_COPY)  
+    rknn_tensor_mem* input_mems[1];
+    rknn_tensor_mem* output_mems[9];
+    rknn_tensor_attr* input_native_attrs;
+    rknn_tensor_attr* output_native_attrs;
+#endif
     int model_channel;
     int model_width;
     int model_height;
@@ -30,28 +58,4 @@ int release_yolo11_model(rknn_app_context_t* app_ctx);
 
 int inference_yolo11_model(rknn_app_context_t* app_ctx, image_buffer_t* img, object_detect_result_list* od_results);
 
-class YOLO11Processor : public QObject {
-    Q_OBJECT
-public:
-    explicit YOLO11Processor(QObject *parent = nullptr);
-    ~YOLO11Processor();
-
-    bool initialize(const char* model_path);
-    bool isInitialized() const;
-    void release();
-
-public slots:  // Явно объявляем слот для обработки кадров
-    void processFrame(const QImage& frame);
-
-signals:
-    void objectsDetected(const QList<QRect>& objects, const QImage& frame);
-
-private:
-    bool processImage(const QImage& image, object_detect_result_list* od_results);
-    bool convertQImageToImageBuffer(const QImage& qimage, image_buffer_t* src_image);
-
-    rknn_app_context_t rknn_app_ctx;
-    mutable QMutex m_mutex;
-    bool m_initialized = false;
-    bool m_processed = false;
-};
+#endif //_RKNN_DEMO_YOLO11_H_
