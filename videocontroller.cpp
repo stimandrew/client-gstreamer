@@ -11,18 +11,11 @@ VideoController::~VideoController()
     delete m_pipeline;
 }
 
-bool VideoController::isRunning() const
-{
-    return m_isRunning;
-}
-
-int VideoController::port() const
-{
-    return m_port;
-}
-
+bool VideoController::isRunning() const { return m_isRunning; }
+int VideoController::port() const { return m_port; }
 bool VideoController::yoloEnabled() const { return m_yoloEnabled; }
 QString VideoController::yoloModelPath() const { return m_yoloModelPath; }
+QVariantList VideoController::objects() const { return m_objects; }
 
 void VideoController::setPort(int port)
 {
@@ -50,6 +43,7 @@ void VideoController::setYoloModelPath(const QString& path) {
             m_pipeline->setYoloModelPath(path);
         }
         emit yoloModelPathChanged(path);
+        emit objectsChanged(m_objects); // Добавляем этот emit
     }
 }
 
@@ -63,9 +57,14 @@ void VideoController::start() {
             return;
         }
 
-        // Подключаем сигналы после создания pipeline
-        connect(m_pipeline, &VideoPipeline::newFrame, this, &VideoController::newFrame, Qt::DirectConnection);
-        connect(m_pipeline, &VideoPipeline::newObjects, this, &VideoController::newObjects, Qt::DirectConnection);
+        connect(m_pipeline, &VideoPipeline::newFrame, this, &VideoController::newFrame);
+        connect(m_pipeline, &VideoPipeline::newObjects, this, [this](const QList<QRect>& objects) {
+            m_objects.clear();
+            for (const QRect& rect : objects) {
+                m_objects.append(QVariant::fromValue(rect));
+            }
+            emit objectsChanged(m_objects);
+        });
 
         if (!m_yoloModelPath.isEmpty()) {
             m_pipeline->setYoloModelPath(m_yoloModelPath);
@@ -78,19 +77,19 @@ void VideoController::start() {
     emit isRunningChanged(true);
 }
 
-void VideoController::stop()
-{
+void VideoController::stop() {
     resetPipeline();
 }
 
-void VideoController::resetPipeline()
-{
+void VideoController::resetPipeline() {
     if (m_pipeline) {
         m_pipeline->stop();
+        disconnect(m_pipeline, nullptr, this, nullptr);
         delete m_pipeline;
         m_pipeline = nullptr;
         m_isRunning = false;
+        m_objects.clear();
         emit isRunningChanged(false);
+        emit objectsChanged(m_objects);
     }
 }
-

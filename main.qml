@@ -36,6 +36,39 @@ Window {
                         height: parent.height
                         visible: controller1.isRunning
                     }
+
+                    Canvas {
+                        id: detectionCanvas
+                        anchors.fill: parent
+                        visible: controller1.yoloEnabled
+
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+                            ctx.strokeStyle = "red"
+                            ctx.lineWidth = 2
+                            ctx.font = "14px Sans Serif"
+                            ctx.fillStyle = "red"
+
+                            // Scale coordinates to canvas size
+                            var scaleX = width / video1.width
+                            var scaleY = height / video1.height
+
+                            for (var i = 0; i < controller1.objects.length; i++) {
+                                var obj = controller1.objects[i]
+                                ctx.strokeRect(obj.x * scaleX, obj.y * scaleY,
+                                              obj.width * scaleX, obj.height * scaleY)
+                                ctx.fillText("Object " + i, obj.x * scaleX + 5, obj.y * scaleY + 20)
+                            }
+                        }
+                    }
+
+                    Connections {
+                        target: controller1
+                        function onObjectsChanged() {
+                            detectionCanvas.requestPaint()
+                        }
+                    }
                 }
 
                 Row {
@@ -87,6 +120,30 @@ Window {
                         height: parent.height
                         visible: controller2.isRunning
                     }
+
+                    Canvas {
+                        id: detectionCanvas2
+                        anchors.fill: parent
+                        visible: controller2.yoloEnabled
+
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+                            ctx.strokeStyle = "red"
+                            ctx.lineWidth = 2
+                            for (var i = 0; i < controller2.objects.length; i++) {
+                                var obj = controller2.objects[i]
+                                ctx.strokeRect(obj.x, obj.y, obj.width, obj.height)
+                            }
+                        }
+                    }
+
+                    Connections {
+                        target: controller2
+                        function onObjectsChanged() {
+                            detectionCanvas2.requestPaint()
+                        }
+                    }
                 }
 
                 Row {
@@ -106,6 +163,17 @@ Window {
                         text: controller2.port
                         validator: IntValidator { bottom: 0; top: 65535 }
                         onAccepted: controller2.setPort(parseInt(text))
+                    }
+
+                    CheckBox {
+                        text: "YOLO"
+                        checked: controller2.yoloEnabled
+                        onCheckedChanged: controller2.setYoloEnabled(checked)
+                    }
+
+                    Button {
+                        text: "Load Model"
+                        onClicked: controller2.setYoloModelPath("yolo11n.rknn")
                     }
                 }
             }
@@ -130,6 +198,30 @@ Window {
                     visible: controller3.isRunning
                     showObjects: true
                 }
+
+                Canvas {
+                    id: detectionCanvas3
+                    anchors.fill: parent
+                    visible: controller3.yoloEnabled
+
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        ctx.strokeStyle = "red"
+                        ctx.lineWidth = 2
+                        for (var i = 0; i < controller3.objects.length; i++) {
+                            var obj = controller3.objects[i]
+                            ctx.strokeRect(obj.x, obj.y, obj.width, obj.height)
+                        }
+                    }
+                }
+
+                Connections {
+                    target: controller3
+                    function onObjectsChanged() {
+                        detectionCanvas3.requestPaint()
+                    }
+                }
             }
 
             Row {
@@ -149,6 +241,17 @@ Window {
                     text: controller3.port
                     validator: IntValidator { bottom: 0; top: 65535 }
                     onAccepted: controller3.setPort(parseInt(text))
+                }
+
+                CheckBox {
+                    text: "YOLO"
+                    checked: controller3.yoloEnabled
+                    onCheckedChanged: controller3.setYoloEnabled(checked)
+                }
+
+                Button {
+                    text: "Load Model"
+                    onClicked: controller3.setYoloModelPath("yolo11n.rknn")
                 }
             }
         }

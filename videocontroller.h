@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QVariant>
 #include "videopipeline.h"
 
 class VideoController : public QObject
@@ -10,6 +11,7 @@ class VideoController : public QObject
     Q_PROPERTY(int port READ port WRITE setPort NOTIFY portChanged)
     Q_PROPERTY(bool yoloEnabled READ yoloEnabled WRITE setYoloEnabled NOTIFY yoloEnabledChanged)
     Q_PROPERTY(QString yoloModelPath READ yoloModelPath WRITE setYoloModelPath NOTIFY yoloModelPathChanged)
+    Q_PROPERTY(QVariantList objects READ objects NOTIFY objectsChanged)
 
 public:
     explicit VideoController(QObject *parent = nullptr);
@@ -19,6 +21,7 @@ public:
     int port() const;
     bool yoloEnabled() const;
     QString yoloModelPath() const;
+    QVariantList objects() const;
 
     Q_INVOKABLE void setPort(int port);
     Q_INVOKABLE void setYoloEnabled(bool enabled);
@@ -31,6 +34,7 @@ signals:
     void portChanged(int port);
     void yoloEnabledChanged(bool enabled);
     void yoloModelPathChanged(const QString& path);
+    void objectsChanged(const QVariantList& objects);
     void newFrame(const QImage &frame);
     void newObjects(const QList<QRect> &objects);
 
@@ -40,5 +44,6 @@ private:
     bool m_isRunning = false;
     bool m_yoloEnabled = false;
     QString m_yoloModelPath;
+    QVariantList m_objects;
     void resetPipeline();
 };

@@ -5,6 +5,8 @@
 #include <QImage>
 #include <QMutex>
 #include <QQueue>
+#include <QTimer>
+#include <QElapsedTimer>
 #include <gst/gst.h>
 #include "yolo11.h"
 
@@ -25,6 +27,9 @@ signals:
     void newFrame(const QImage &frame);
     void newObjects(const QList<QRect> &objects);
 
+private slots:
+    void processNextFrame();
+
 private:
     static GstFlowReturn newSampleCallback(GstElement *sink, gpointer data);
     GstFlowReturn handleSample(GstSample *sample);
@@ -36,10 +41,12 @@ private:
     int m_port;
     QThread *workerThread;
     QThread *yoloThread;
+    QTimer* m_yoloTimer;
     mutable QMutex m_pipelineMutex;
     bool m_yoloEnabled = false;
     bool m_yoloInitialized = false;
     QQueue<QImage> frameQueue;
     QMutex queueMutex;
-    bool m_firstFrameProcessed = false;
+    QElapsedTimer m_frameTimer;
+    int m_frameCount = 0;
 };

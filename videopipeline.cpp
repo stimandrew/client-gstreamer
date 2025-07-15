@@ -16,6 +16,11 @@ VideoPipeline::VideoPipeline(int port, QObject *parent)
     QObject::connect(yoloThread, &QThread::finished, yoloThread, &QObject::deleteLater);
     yoloThread->start();
 
+    m_yoloTimer = new QTimer(this);
+    m_yoloTimer->setInterval(1000); // 1 секунда
+    m_yoloTimer->moveToThread(yoloThread);
+    QObject::connect(m_yoloTimer, &QTimer::timeout, this, &VideoPipeline::processNextFrame);
+
 }
 
 VideoPipeline::~VideoPipeline()
@@ -30,9 +35,29 @@ VideoPipeline::~VideoPipeline()
     yoloThread->wait();
 }
 
+void VideoPipeline::processNextFrame()
+{
+    if (!frameQueue.isEmpty()) {
+        QImage frame;
+        queueMutex.lock();
+        frame = frameQueue.dequeue();
+        frameQueue.clear(); // Обрабатываем только последний кадр
+        queueMutex.unlock();
+        processFrameWithRGA(frame);
+    }
+}
+
 void VideoPipeline::setYoloEnabled(bool enabled) {
     QMutexLocker locker(&m_pipelineMutex);
     m_yoloEnabled = enabled && m_yoloInitialized;
+    if (m_yoloEnabled) {
+        QMetaObject::invokeMethod(m_yoloTimer, "start");
+    } else {
+        QMetaObject::invokeMethod(m_yoloTimer, "stop");
+        queueMutex.lock();
+        frameQueue.clear();
+        queueMutex.unlock();
+    }
 }
 
 void VideoPipeline::setYoloModelPath(const QString& path) {
@@ -177,9 +202,8 @@ GstFlowReturn VideoPipeline::handleSample(GstSample *sample) {
         }
         emit newFrame(image.copy());
 
-        if (m_yoloEnabled && m_yoloInitialized && !m_firstFrameProcessed) {
+        if (m_yoloEnabled && m_yoloInitialized) {
             processFrameWithRGA(image);
-            m_firstFrameProcessed = true;
         }
 
         gst_buffer_unmap(buffer, &map);
@@ -217,11 +241,6 @@ void VideoPipeline::processFrameWithRGA(const QImage &frame)
         return;
     }
 
-    // Создаем копию кадра для рисования bounding boxes
-    QImage resultImage = frame.copy();
-    QPainter painter(&resultImage);
-    painter.setPen(QPen(Qt::red, 2));
-
     QList<QRect> objects;
     for (int i = 0; i < od_results.count; i++) {
         object_detect_result *det_result = &(od_results.results[i]);
@@ -233,26 +252,9 @@ void VideoPipeline::processFrameWithRGA(const QImage &frame)
             );
         objects.append(rect);
 
-        // Рисуем bounding box на изображении
-        painter.drawRect(rect);
-
-        // Выводим информацию об объекте в консоль
         qDebug() << "Detected object at:" << rect
                  << "Class ID:" << det_result->cls_id
                  << "Confidence:" << det_result->prop;
-    }
-    painter.end();
-
-    // Сохраняем изображение с bounding boxes
-    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss_zzz");
-    QString outputDir = "detection_results";
-    QDir().mkdir(outputDir); // Создаем директорию, если ее нет
-    QString outputPath = QString("%1/detection_%2.jpg").arg(outputDir).arg(timestamp);
-
-    if (resultImage.save(outputPath, "JPEG")) {
-        qDebug() << "Saved detection results to:" << outputPath;
-    } else {
-        qWarning() << "Failed to save detection results";
     }
 
     emit newObjects(objects);
