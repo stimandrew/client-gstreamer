@@ -50,15 +50,21 @@ Window {
                             ctx.font = "14px Sans Serif"
                             ctx.fillStyle = "red"
 
-                            // Scale coordinates to canvas size
                             var scaleX = width / video1.width
                             var scaleY = height / video1.height
 
                             for (var i = 0; i < controller1.objects.length; i++) {
                                 var obj = controller1.objects[i]
-                                ctx.strokeRect(obj.x * scaleX, obj.y * scaleY,
-                                              obj.width * scaleX, obj.height * scaleY)
-                                ctx.fillText("Object " + i, obj.x * scaleX + 5, obj.y * scaleY + 20)
+                                var rect = obj.rect
+                                var label = obj.label
+
+                                var scaledX = rect.x * scaleX
+                                var scaledY = rect.y * scaleY
+                                var scaledWidth = rect.width * scaleX
+                                var scaledHeight = rect.height * scaleY
+
+                                ctx.strokeRect(scaledX, scaledY, scaledWidth, scaledHeight)
+                                ctx.fillText(label, scaledX + 5, scaledY + 20)
                             }
                         }
                     }
@@ -131,9 +137,24 @@ Window {
                             ctx.clearRect(0, 0, width, height)
                             ctx.strokeStyle = "red"
                             ctx.lineWidth = 2
+                            ctx.font = "14px Sans Serif"
+                            ctx.fillStyle = "red"
+
+                            var scaleX = width / video2.width
+                            var scaleY = height / video2.height
+
                             for (var i = 0; i < controller2.objects.length; i++) {
                                 var obj = controller2.objects[i]
-                                ctx.strokeRect(obj.x, obj.y, obj.width, obj.height)
+                                var rect = obj.rect
+                                var label = obj.label
+
+                                var scaledX = rect.x * scaleX
+                                var scaledY = rect.y * scaleY
+                                var scaledWidth = rect.width * scaleX
+                                var scaledHeight = rect.height * scaleY
+
+                                ctx.strokeRect(scaledX, scaledY, scaledWidth, scaledHeight)
+                                ctx.fillText(label, scaledX + 5, scaledY + 20)
                             }
                         }
                     }
@@ -209,9 +230,24 @@ Window {
                         ctx.clearRect(0, 0, width, height)
                         ctx.strokeStyle = "red"
                         ctx.lineWidth = 2
+                        ctx.font = "14px Sans Serif"
+                        ctx.fillStyle = "red"
+
+                        var scaleX = width / video3.width
+                        var scaleY = height / video3.height
+
                         for (var i = 0; i < controller3.objects.length; i++) {
                             var obj = controller3.objects[i]
-                            ctx.strokeRect(obj.x, obj.y, obj.width, obj.height)
+                            var rect = obj.rect
+                            var label = obj.label
+
+                            var scaledX = rect.x * scaleX
+                            var scaledY = rect.y * scaleY
+                            var scaledWidth = rect.width * scaleX
+                            var scaledHeight = rect.height * scaleY
+
+                            ctx.strokeRect(scaledX, scaledY, scaledWidth, scaledHeight)
+                            ctx.fillText(label, scaledX + 5, scaledY + 20)
                         }
                     }
                 }

@@ -63,6 +63,7 @@ void VideoPipeline::setYoloEnabled(bool enabled) {
 void VideoPipeline::setYoloModelPath(const QString& path) {
     QMutexLocker locker(&m_pipelineMutex);
     if (!path.isEmpty()) {
+        init_post_process();
         int ret = init_yolo11_model(path.toStdString().c_str(), &m_rknnAppCtx);
         if (ret != 0) {
             qWarning() << "Failed to initialize YOLO model";
@@ -241,7 +242,7 @@ void VideoPipeline::processFrameWithRGA(const QImage &frame)
         return;
     }
 
-    QList<QRect> objects;
+    QList<QPair<QRect, QString>> objects; // Пара: прямоугольник и метка класса
     for (int i = 0; i < od_results.count; i++) {
         object_detect_result *det_result = &(od_results.results[i]);
         QRect rect(
@@ -250,11 +251,14 @@ void VideoPipeline::processFrameWithRGA(const QImage &frame)
             det_result->box.right - det_result->box.left,
             det_result->box.bottom - det_result->box.top
             );
-        objects.append(rect);
 
-        qDebug() << "Detected object at:" << rect
-                 << "Class ID:" << det_result->cls_id
-                 << "Confidence:" << det_result->prop;
+        // Получаем название класса
+        const char* cls_name = coco_cls_to_name(det_result->cls_id);
+        QString label = QString::fromUtf8(cls_name);
+
+        objects.append(qMakePair(rect, label));
+
+        qDebug() << "Detected:" << label << "at:" << rect;
     }
 
     emit newObjects(objects);

@@ -12,6 +12,7 @@
 #define OBJ_CLASS_NUM 80
 #define NMS_THRESH 0.45
 #define BOX_THRESH 0.25
+#define LABEL_NALE_TXT_PATH "./model/coco_80_labels_list.txt"
 
 // class rknn_app_context_t;
 

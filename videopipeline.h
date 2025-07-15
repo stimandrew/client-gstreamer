@@ -25,7 +25,7 @@ public:
 
 signals:
     void newFrame(const QImage &frame);
-    void newObjects(const QList<QRect> &objects);
+    void newObjects(const QList<QPair<QRect, QString>>& objects);
 
 private slots:
     void processNextFrame();

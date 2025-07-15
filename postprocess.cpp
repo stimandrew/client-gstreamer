@@ -20,10 +20,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-
+#include <QDebug>
 #include <set>
 #include <vector>
-#define LABEL_NALE_TXT_PATH "./model/coco_80_labels_list.txt"
 
 static char *labels[OBJ_CLASS_NUM];
 
@@ -661,9 +660,14 @@ int init_post_process()
     ret = loadLabelName(LABEL_NALE_TXT_PATH, labels);
     if (ret < 0)
     {
-        printf("Load %s failed!\n", LABEL_NALE_TXT_PATH);
+        qDebug("Load %s failed!\n", LABEL_NALE_TXT_PATH);
         return -1;
     }
+
+    for (int i = 0; i < 10; i++) {
+        qDebug("Label %d: %s\n", i, labels[i] ? labels[i] : "NULL");
+    }
+
     return 0;
 }
 

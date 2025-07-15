@@ -6,6 +6,7 @@
 #include <gst/gst.h>
 #include "videorenderer.h"
 #include "videocontroller.h"
+#include "postprocess.h"
 
 int main(int argc, char *argv[])
 {
@@ -18,7 +19,6 @@ int main(int argc, char *argv[])
 
     {
         QGuiApplication app(argc, argv);
-
         // Регистрируем наши классы в QML
         qmlRegisterType<VideoRenderer>("VideoRenderer", 1, 0, "VideoRenderer");
         qmlRegisterType<VideoController>("VideoController", 1, 0, "VideoController");

@@ -44,6 +44,6 @@ private:
     bool m_isRunning = false;
     bool m_yoloEnabled = false;
     QString m_yoloModelPath;
-    QVariantList m_objects;
+    QList<QPair<QRect, QString>> m_objects;
     void resetPipeline();
 };

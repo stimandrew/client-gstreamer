@@ -15,7 +15,16 @@ bool VideoController::isRunning() const { return m_isRunning; }
 int VideoController::port() const { return m_port; }
 bool VideoController::yoloEnabled() const { return m_yoloEnabled; }
 QString VideoController::yoloModelPath() const { return m_yoloModelPath; }
-QVariantList VideoController::objects() const { return m_objects; }
+QVariantList VideoController::objects() const {
+    QVariantList list;
+    for (const auto &obj : m_objects) {
+        QVariantMap map;
+        map["rect"] = QVariant::fromValue(obj.first);
+        map["label"] = obj.second;
+        list.append(map);
+    }
+    return list;
+}
 
 void VideoController::setPort(int port)
 {
@@ -43,7 +52,7 @@ void VideoController::setYoloModelPath(const QString& path) {
             m_pipeline->setYoloModelPath(path);
         }
         emit yoloModelPathChanged(path);
-        emit objectsChanged(m_objects); // Добавляем этот emit
+        emit objectsChanged(objects());
     }
 }
 
@@ -58,12 +67,9 @@ void VideoController::start() {
         }
 
         connect(m_pipeline, &VideoPipeline::newFrame, this, &VideoController::newFrame);
-        connect(m_pipeline, &VideoPipeline::newObjects, this, [this](const QList<QRect>& objects) {
-            m_objects.clear();
-            for (const QRect& rect : objects) {
-                m_objects.append(QVariant::fromValue(rect));
-            }
-            emit objectsChanged(m_objects);
+        connect(m_pipeline, &VideoPipeline::newObjects, this, [this](const QList<QPair<QRect, QString>>& objects) {
+            m_objects = objects;
+            emit objectsChanged(this->objects());
         });
 
         if (!m_yoloModelPath.isEmpty()) {
@@ -90,6 +96,6 @@ void VideoController::resetPipeline() {
         m_isRunning = false;
         m_objects.clear();
         emit isRunningChanged(false);
-        emit objectsChanged(m_objects);
+        emit objectsChanged(objects());
     }
 }
