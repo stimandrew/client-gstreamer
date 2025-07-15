@@ -13,6 +13,7 @@
 class VideoPipeline : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(int fps READ fps NOTIFY fpsChanged)
 public:
     explicit VideoPipeline(int port, QObject *parent = nullptr);
     ~VideoPipeline();
@@ -22,10 +23,12 @@ public:
     void stop();
     void setYoloEnabled(bool enabled);
     void setYoloModelPath(const QString& path);
+    int fps() const;
 
 signals:
     void newFrame(const QImage &frame);
     void newObjects(const QList<QPair<QRect, QString>>& objects);
+    void fpsChanged(int fps);
 
 private slots:
     void processNextFrame();
@@ -48,5 +51,7 @@ private:
     QQueue<QImage> frameQueue;
     QMutex queueMutex;
     QElapsedTimer m_frameTimer;
-    int m_frameCount = 0;
+    int m_fps = 0; // Переменная для хранения FPS
+    QElapsedTimer m_fpsTimer; // Таймер для расчёта FPS
+    int m_frameCount = 0; // Счётчик кадров
 };

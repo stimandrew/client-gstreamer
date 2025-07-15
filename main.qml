@@ -37,6 +37,16 @@ Window {
                         visible: controller1.isRunning
                     }
 
+                    Text {
+                            id: fpsText1
+                            anchors.top: parent.top
+                            anchors.right: parent.right
+                            anchors.margins: 10
+                            color: "white"
+                            font.pixelSize: 20
+                            text: "FPS: " + controller1.fps
+                        }
+
                     Canvas {
                         id: detectionCanvas
                         anchors.fill: parent
@@ -126,6 +136,16 @@ Window {
                         height: parent.height
                         visible: controller2.isRunning
                     }
+
+                    Text {
+                            id: fpsText2
+                            anchors.top: parent.top
+                            anchors.right: parent.right
+                            anchors.margins: 10
+                            color: "white"
+                            font.pixelSize: 20
+                            text: "FPS: " + controller2.fps
+                        }
 
                     Canvas {
                         id: detectionCanvas2
@@ -219,6 +239,16 @@ Window {
                     visible: controller3.isRunning
                     showObjects: true
                 }
+
+                Text {
+                        id: fpsText3
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        color: "white"
+                        font.pixelSize: 20
+                        text: "FPS: " + controller3.fps
+                    }
 
                 Canvas {
                     id: detectionCanvas3

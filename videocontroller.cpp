@@ -56,6 +56,19 @@ void VideoController::setYoloModelPath(const QString& path) {
     }
 }
 
+int VideoController::fps() const
+{
+    return m_fps;
+}
+
+void VideoController::onFpsChanged(int fps)
+{
+    if (m_fps != fps) {
+        m_fps = fps;
+        emit fpsChanged(fps);
+    }
+}
+
 void VideoController::start() {
     if (!m_pipeline) {
         m_pipeline = new VideoPipeline(m_port);
@@ -71,6 +84,7 @@ void VideoController::start() {
             m_objects = objects;
             emit objectsChanged(this->objects());
         });
+        connect(m_pipeline, &VideoPipeline::fpsChanged, this, &VideoController::onFpsChanged);
 
         if (!m_yoloModelPath.isEmpty()) {
             m_pipeline->setYoloModelPath(m_yoloModelPath);

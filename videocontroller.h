@@ -12,6 +12,7 @@ class VideoController : public QObject
     Q_PROPERTY(bool yoloEnabled READ yoloEnabled WRITE setYoloEnabled NOTIFY yoloEnabledChanged)
     Q_PROPERTY(QString yoloModelPath READ yoloModelPath WRITE setYoloModelPath NOTIFY yoloModelPathChanged)
     Q_PROPERTY(QVariantList objects READ objects NOTIFY objectsChanged)
+    Q_PROPERTY(int fps READ fps NOTIFY fpsChanged)
 
 public:
     explicit VideoController(QObject *parent = nullptr);
@@ -19,6 +20,7 @@ public:
 
     bool isRunning() const;
     int port() const;
+    int fps() const;
     bool yoloEnabled() const;
     QString yoloModelPath() const;
     QVariantList objects() const;
@@ -37,6 +39,10 @@ signals:
     void objectsChanged(const QVariantList& objects);
     void newFrame(const QImage &frame);
     void newObjects(const QList<QRect> &objects);
+    void fpsChanged(int fps);
+
+private slots:
+    void onFpsChanged(int fps);
 
 private:
     VideoPipeline *m_pipeline = nullptr;
@@ -46,4 +52,5 @@ private:
     QString m_yoloModelPath;
     QList<QPair<QRect, QString>> m_objects;
     void resetPipeline();
+    int m_fps = 0;
 };

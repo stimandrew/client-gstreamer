@@ -21,6 +21,8 @@ VideoPipeline::VideoPipeline(int port, QObject *parent)
     m_yoloTimer->moveToThread(yoloThread);
     QObject::connect(m_yoloTimer, &QTimer::timeout, this, &VideoPipeline::processNextFrame);
 
+    m_fpsTimer.start();
+
 }
 
 VideoPipeline::~VideoPipeline()
@@ -178,6 +180,11 @@ GstFlowReturn VideoPipeline::newSampleCallback(GstElement *sink, gpointer data)
     return pipeline->handleSample(sample);
 }
 
+int VideoPipeline::fps() const
+{
+    return m_fps;
+}
+
 GstFlowReturn VideoPipeline::handleSample(GstSample *sample) {
 
     GstBuffer *buffer = gst_sample_get_buffer(sample);
@@ -190,6 +197,15 @@ GstFlowReturn VideoPipeline::handleSample(GstSample *sample) {
 
     const char *format;
     format = gst_structure_get_string(structure, "format");
+
+    // Обновляем счётчик FPS
+    m_frameCount++;
+    if (m_fpsTimer.elapsed() >= 1000) { // Каждую секунду
+        m_fps = m_frameCount;
+        m_frameCount = 0;
+        m_fpsTimer.restart();
+        emit fpsChanged(m_fps);
+    }
 
     GstMapInfo map;
     if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
