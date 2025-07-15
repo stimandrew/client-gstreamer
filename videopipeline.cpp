@@ -254,7 +254,8 @@ void VideoPipeline::processFrameWithRGA(const QImage &frame)
 
         // Получаем название класса
         const char* cls_name = coco_cls_to_name(det_result->cls_id);
-        QString label = QString::fromUtf8(cls_name);
+        QString label = QString("%1 %2%").arg(QString::fromUtf8(cls_name))
+                            .arg(QString::number(det_result->prop * 100, 'f', 0));
 
         objects.append(qMakePair(rect, label));
 
