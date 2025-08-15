@@ -22,14 +22,18 @@ VideoPipeline::VideoPipeline(int port, QObject *parent)
     QObject::connect(m_yoloTimer, &QTimer::timeout, this, &VideoPipeline::processNextFrame);
 
     m_fpsTimer.start();
-
+    // Инициализация мьютексов
+    m_rknnMutexes.push_back(std::make_unique<QMutex>());
+    m_rknnMutexes.push_back(std::make_unique<QMutex>());
 }
 
 VideoPipeline::~VideoPipeline()
 {
     stop();
-    if (m_yoloInitialized) {
-        release_yolo11_model(&m_rknnAppCtx);
+    for (int i = 0; i < 2; ++i) {
+        if (m_yoloInitialized) {
+            release_yolo11_model(&m_rknnAppCtx[i]);
+        }
     }
     workerThread->quit();
     workerThread->wait();
@@ -63,18 +67,20 @@ void VideoPipeline::setYoloEnabled(bool enabled) {
 }
 
 void VideoPipeline::setYoloModelPath(const QString& path) {
-    QMutexLocker locker(&m_pipelineMutex);
     if (!path.isEmpty()) {
         init_post_process();
-        int ret = init_yolo11_model(path.toStdString().c_str(), &m_rknnAppCtx);
-        if (ret != 0) {
-            qWarning() << "Failed to initialize YOLO model";
-            m_yoloInitialized = false;
-            m_yoloEnabled = false;
-        } else {
-            m_yoloInitialized = true;
-            m_yoloEnabled = true;
+        for (int i = 0; i < 2; ++i) {
+            std::unique_lock<QMutex> lock(*m_rknnMutexes[i]); // Используем unique_lock
+            int ret = init_yolo11_model(path.toStdString().c_str(), &m_rknnAppCtx[i]);
+            if (ret != 0) {
+                qWarning() << "Failed to initialize YOLO model for core" << i;
+                m_yoloInitialized = false;
+                return;
+            }
+            rknn_set_core_mask(m_rknnAppCtx[i].rknn_ctx,
+                               (i == 0) ? RKNN_NPU_CORE_0 : RKNN_NPU_CORE_1);
         }
+        m_yoloInitialized = true;
     }
 }
 
@@ -237,6 +243,11 @@ void VideoPipeline::processFrameWithRGA(const QImage &frame)
         return;
     }
 
+    static std::atomic<int> thread_counter{0};
+    int thread_id = thread_counter.fetch_add(1) % 2;
+
+    std::unique_lock<QMutex> lock(*m_rknnMutexes[thread_id]); // Используем unique_lock
+
     image_buffer_t src_image;
     memset(&src_image, 0, sizeof(image_buffer_t));
 
@@ -251,7 +262,7 @@ void VideoPipeline::processFrameWithRGA(const QImage &frame)
     object_detect_result_list od_results;
     memset(&od_results, 0, sizeof(od_results));
 
-    int ret = inference_yolo11_model(&m_rknnAppCtx, &src_image, &od_results);
+    int ret = inference_yolo11_model(&m_rknnAppCtx[thread_id], &src_image, &od_results);
     if (ret != 0) {
         qWarning() << "YOLO inference failed";
         free(src_image.virt_addr);

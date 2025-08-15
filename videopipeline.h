@@ -37,7 +37,8 @@ private:
     static GstFlowReturn newSampleCallback(GstElement *sink, gpointer data);
     GstFlowReturn handleSample(GstSample *sample);
     void processFrameWithRGA(const QImage &frame);
-    rknn_app_context_t m_rknnAppCtx;
+    std::vector<std::unique_ptr<QMutex>> m_rknnMutexes; // Используем вектор unique_ptr
+    rknn_app_context_t m_rknnAppCtx[2];
 
     GstElement *pipeline = nullptr;
     GstElement *sink = nullptr;
