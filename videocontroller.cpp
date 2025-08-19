@@ -3,6 +3,11 @@
 
 VideoController::VideoController(QObject *parent) : QObject(parent)
 {
+    m_modbusClient = new ModbusClient(this);
+    connect(m_modbusClient, &ModbusClient::connectionStateChanged,
+            this, &VideoController::onModbusConnectionStateChanged);
+    connect(m_modbusClient, &ModbusClient::errorOccurred,
+            this, &VideoController::onModbusError);
 }
 
 VideoController::~VideoController()
@@ -112,4 +117,44 @@ void VideoController::resetPipeline() {
         emit isRunningChanged(false);
         emit objectsChanged(objects());
     }
+}
+
+bool VideoController::modbusConnected() const {
+    return m_modbusClient ? m_modbusClient->isConnected() : false;
+}
+
+QString VideoController::modbusAddress() const {
+    return m_modbusAddress;
+}
+
+void VideoController::setModbusAddress(const QString& address) {
+    if (m_modbusAddress != address) {
+        m_modbusAddress = address;
+        qDebug() << "Setting Modbus address to:" << address;
+        m_modbusClient->setupDevice(address);
+        m_modbusClient->setConnectionSettings(1000, 3);
+        emit modbusAddressChanged(address);
+    }
+}
+
+void VideoController::connectModbus() {
+    if (!m_modbusAddress.isEmpty()) {
+        qDebug() << "Attempting to connect Modbus to:" << m_modbusAddress;
+        m_modbusClient->connectDevice();
+    } else {
+        qWarning() << "Modbus address is empty!";
+        emit modbusErrorOccurred("Modbus address is empty");
+    }
+}
+
+void VideoController::disconnectModbus() {
+    m_modbusClient->disconnectDevice();
+}
+
+void VideoController::onModbusConnectionStateChanged(bool connected) {
+    emit modbusConnectedChanged(connected);
+}
+
+void VideoController::onModbusError(const QString& error) {
+    emit modbusErrorOccurred(error);
 }

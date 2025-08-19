@@ -24,8 +24,8 @@ set_target_properties(rknnrt PROPERTIES
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/ 3rdparty.out)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/utils/ utils.out)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Widgets Quick OpenGL)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Quick OpenGL)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Widgets Quick OpenGL SerialBus)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Quick OpenGL SerialBus)
 
 
 find_package(PkgConfig REQUIRED)
@@ -50,6 +50,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         rknpu2/yolo11.cpp
         postprocess.h
         postprocess.cpp
+        modbusclient.h modbusclient.cpp
 
     )
 # Define target properties for Android with Qt 6 as:
@@ -74,6 +75,7 @@ target_link_libraries(client-gstreamer
   PRIVATE Qt${QT_VERSION_MAJOR}::Core
   Qt${QT_VERSION_MAJOR}::Quick
   Qt${QT_VERSION_MAJOR}::Widgets
+  Qt${QT_VERSION_MAJOR}::SerialBus
   ${GSTREAMER_LIBRARIES}
   imageutils
   fileutils
