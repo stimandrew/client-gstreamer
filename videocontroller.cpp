@@ -3,10 +3,10 @@
 
 VideoController::VideoController(QObject *parent) : QObject(parent)
 {
-    m_modbusClient = new ModbusClient(this);
-    connect(m_modbusClient, &ModbusClient::connectionStateChanged,
+    deviceClient = new ModbusCommandsClient(this);
+    connect(deviceClient, &ModbusClient::connectionStateChanged,
             this, &VideoController::onModbusConnectionStateChanged);
-    connect(m_modbusClient, &ModbusClient::errorOccurred,
+    connect(deviceClient, &ModbusClient::errorOccurred,
             this, &VideoController::onModbusError);
 }
 
@@ -120,7 +120,7 @@ void VideoController::resetPipeline() {
 }
 
 bool VideoController::modbusConnected() const {
-    return m_modbusClient ? m_modbusClient->isConnected() : false;
+    return deviceClient ? deviceClient->isConnected() : false;
 }
 
 QString VideoController::modbusAddress() const {
@@ -131,8 +131,8 @@ void VideoController::setModbusAddress(const QString& address) {
     if (m_modbusAddress != address) {
         m_modbusAddress = address;
         qDebug() << "Setting Modbus address to:" << address;
-        m_modbusClient->setupDevice(address);
-        m_modbusClient->setConnectionSettings(1000, 3);
+        deviceClient->setupDevice(address);
+        deviceClient->setConnectionSettings(1000, 3);
         emit modbusAddressChanged(address);
     }
 }
@@ -140,7 +140,7 @@ void VideoController::setModbusAddress(const QString& address) {
 void VideoController::connectModbus() {
     if (!m_modbusAddress.isEmpty()) {
         qDebug() << "Attempting to connect Modbus to:" << m_modbusAddress;
-        m_modbusClient->connectDevice();
+        deviceClient->connectDevice();
     } else {
         qWarning() << "Modbus address is empty!";
         emit modbusErrorOccurred("Modbus address is empty");
@@ -148,7 +148,7 @@ void VideoController::connectModbus() {
 }
 
 void VideoController::disconnectModbus() {
-    m_modbusClient->disconnectDevice();
+    deviceClient->disconnectDevice();
 }
 
 void VideoController::onModbusConnectionStateChanged(bool connected) {
@@ -161,8 +161,8 @@ void VideoController::onModbusError(const QString& error) {
 
 void VideoController::sendRebootCommand()
 {
-    if (m_modbusClient && m_modbusClient->isConnected()) {
-        m_modbusClient->sendRebootCommand(1); // serverAddress = 1
+    if (deviceClient && deviceClient->isConnected()) {
+        deviceClient->sendRebootCommand(1); // serverAddress = 1
     } else {
         emit modbusErrorOccurred("Modbus not connected");
     }

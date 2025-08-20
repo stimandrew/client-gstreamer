@@ -3,7 +3,7 @@
 #include <QObject>
 #include <QVariant>
 #include "videopipeline.h"
-#include "modbusclient.h"
+#include "modbuscommandsclient.h"
 
 class VideoController : public QObject
 {
@@ -72,6 +72,6 @@ private:
     void resetPipeline();
     int m_fps = 0;
 
-    ModbusClient* m_modbusClient = nullptr;
+    ModbusCommandsClient *deviceClient = nullptr;
     QString m_modbusAddress;
 };

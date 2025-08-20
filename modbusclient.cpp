@@ -1,11 +1,14 @@
 #include "modbusclient.h"
 #include <QModbusTcpClient>
 #include <QUrl>
+#include <QDebug>
 
+// Конструктор: инициализация объекта ModbusClient
 ModbusClient::ModbusClient(QObject *parent) : QObject(parent)
 {
 }
 
+// Деструктор: очистка ресурсов и отключение устройства
 ModbusClient::~ModbusClient()
 {
     if (modbusDevice) {
@@ -14,6 +17,7 @@ ModbusClient::~ModbusClient()
     }
 }
 
+// Настройка Modbus устройства с указанием параметров подключения
 void ModbusClient::setupDevice(const QString &connectionParam)
 {
     if (modbusDevice) {
@@ -23,7 +27,7 @@ void ModbusClient::setupDevice(const QString &connectionParam)
     }
 
     modbusDevice = new QModbusTcpClient(this);
-    if (!modbusDevice) { // Правильная проверка
+    if (!modbusDevice) {
         emit errorOccurred("Failed to create Modbus device");
         return;
     }
@@ -43,6 +47,7 @@ void ModbusClient::setupDevice(const QString &connectionParam)
     connect(modbusDevice, &QModbusClient::stateChanged, this, &ModbusClient::onModbusStateChanged);
 }
 
+// Установка параметров подключения: время ожидания ответа и количество повторов
 void ModbusClient::setConnectionSettings(int responseTime, int numberOfRetries)
 {
     if (modbusDevice) {
@@ -51,6 +56,7 @@ void ModbusClient::setConnectionSettings(int responseTime, int numberOfRetries)
     }
 }
 
+// Подключение к Modbus устройству
 void ModbusClient::connectDevice()
 {
     if (modbusDevice && modbusDevice->state() != QModbusDevice::ConnectedState) {
@@ -67,6 +73,7 @@ void ModbusClient::connectDevice()
     }
 }
 
+// Отключение от Modbus устройства
 void ModbusClient::disconnectDevice()
 {
     if (modbusDevice && modbusDevice->state() == QModbusDevice::ConnectedState) {
@@ -74,23 +81,27 @@ void ModbusClient::disconnectDevice()
     }
 }
 
+// Проверка, подключено ли устройство в данный момент
 bool ModbusClient::isConnected() const
 {
     return modbusDevice && modbusDevice->state() == QModbusDevice::ConnectedState;
 }
 
+// Создание объекта запроса на чтение данных из указанной таблицы регистров
 QModbusDataUnit ModbusClient::createReadRequest(QModbusDataUnit::RegisterType table,
                                                 int startAddress, quint16 numberOfEntries) const
 {
     return QModbusDataUnit(table, startAddress, numberOfEntries);
 }
 
+// Создание объекта запроса на запись данных в указанную таблицу регистров
 QModbusDataUnit ModbusClient::createWriteRequest(QModbusDataUnit::RegisterType table,
                                                  int startAddress, quint16 numberOfEntries) const
 {
     return QModbusDataUnit(table, startAddress, numberOfEntries);
 }
 
+// Отправка запроса на чтение данных на указанный сервер
 void ModbusClient::sendReadRequest(const QModbusDataUnit &unit, int serverAddress)
 {
     if (!modbusDevice) return;
@@ -105,6 +116,7 @@ void ModbusClient::sendReadRequest(const QModbusDataUnit &unit, int serverAddres
     }
 }
 
+// Отправка запроса на запись данных на указанный сервер
 void ModbusClient::sendWriteRequest(const QModbusDataUnit &unit, int serverAddress)
 {
     if (!modbusDevice) return;
@@ -119,6 +131,7 @@ void ModbusClient::sendWriteRequest(const QModbusDataUnit &unit, int serverAddre
     }
 }
 
+// Отправка комбинированного запроса на чтение-запись на указанный сервер
 void ModbusClient::sendReadWriteRequest(const QModbusDataUnit &readUnit,
                                         const QModbusDataUnit &writeUnit, int serverAddress)
 {
@@ -134,12 +147,14 @@ void ModbusClient::sendReadWriteRequest(const QModbusDataUnit &readUnit,
     }
 }
 
+// Обработчик изменения состояния Modbus устройства
 void ModbusClient::onModbusStateChanged(int state)
 {
     qDebug() << "Modbus state changed to:" << state;
     emit connectionStateChanged(state == QModbusDevice::ConnectedState);
 }
 
+// Обработчик завершения операции чтения данных
 void ModbusClient::onReadReady()
 {
     auto reply = qobject_cast<QModbusReply *>(sender());
@@ -164,6 +179,7 @@ void ModbusClient::onReadReady()
     reply->deleteLater();
 }
 
+// Обработчик завершения операции записи данных
 void ModbusClient::onWriteFinished()
 {
     auto reply = qobject_cast<QModbusReply *>(sender());
@@ -193,30 +209,4 @@ void ModbusClient::onWriteFinished()
     }
 
     reply->deleteLater();
-}
-
-void ModbusClient::sendRebootCommand(int serverAddress)
-{
-    if (!modbusDevice) {
-        qWarning() << "Modbus device is null!";
-        emit errorOccurred("Modbus device not initialized");
-        return;
-    }
-
-    if (!isConnected()) {
-        qWarning() << "Modbus device not connected!";
-        emit errorOccurred("Modbus device not connected");
-        return;
-    }
-
-    qDebug() << "Sending reboot command to server address:" << serverAddress;
-
-    QModbusDataUnit writeUnit = createWriteRequest(QModbusDataUnit::HoldingRegisters, 100, 1);
-    writeUnit.setValue(0, 1);
-
-    qDebug() << "Writing value 1 to holding register 100";
-
-    sendWriteRequest(writeUnit, serverAddress);
-
-    qDebug() << "Reboot command sent successfully";
 }
