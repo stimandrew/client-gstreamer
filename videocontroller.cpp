@@ -158,3 +158,12 @@ void VideoController::onModbusConnectionStateChanged(bool connected) {
 void VideoController::onModbusError(const QString& error) {
     emit modbusErrorOccurred(error);
 }
+
+void VideoController::sendRebootCommand()
+{
+    if (m_modbusClient && m_modbusClient->isConnected()) {
+        m_modbusClient->sendRebootCommand(1); // serverAddress = 1
+    } else {
+        emit modbusErrorOccurred("Modbus not connected");
+    }
+}

@@ -5,6 +5,7 @@ import VideoRenderer 1.0
 import VideoController 1.0
 
 Window {
+    id: mainWindow
     visible: true
     width: 1280
     height: 720
@@ -467,6 +468,25 @@ Window {
                         wrapMode: Text.Wrap
                         verticalAlignment: Text.AlignVCenter
                     }
+                }
+
+                Button {
+                    text: "Reboot System"
+                    enabled: controller1.modbusConnected
+                    onClicked: {
+                        var component = Qt.createComponent("ConfirmDialog.qml");
+                        if (component.status === Component.Ready) {
+                            var dialog = component.createObject(mainWindow);
+                            dialog.confirmed.connect(function() {
+                                controller1.sendRebootCommand();
+                            });
+                            dialog.open();
+                        } else {
+                            console.error("Error loading component:", component.errorString());
+                        }
+                    }
+                    ToolTip.visible: hovered
+                    ToolTip.text: "Send reboot command to server"
                 }
             }
         }

@@ -41,6 +41,8 @@ public:
     Q_INVOKABLE void connectModbus();
     Q_INVOKABLE void disconnectModbus();
 
+    Q_INVOKABLE void sendRebootCommand();
+
 signals:
     void isRunningChanged(bool isRunning);
     void portChanged(int port);

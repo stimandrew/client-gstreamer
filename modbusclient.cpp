@@ -167,9 +167,15 @@ void ModbusClient::onReadReady()
 void ModbusClient::onWriteFinished()
 {
     auto reply = qobject_cast<QModbusReply *>(sender());
-    if (!reply) return;
+    if (!reply) {
+        qWarning() << "Write finished with null reply!";
+        return;
+    }
+
+    qDebug() << "Modbus write operation finished";
 
     if (reply->error() == QModbusDevice::NoError) {
+        qDebug() << "Write operation successful";
         emit writeFinished();
     } else {
         QString errorMsg;
@@ -182,8 +188,35 @@ void ModbusClient::onWriteFinished()
             .arg(reply->errorString())
                 .arg(reply->error(), -1, 16);
         }
+        qWarning() << "Write error:" << errorMsg;
         emit errorOccurred(errorMsg);
     }
 
     reply->deleteLater();
+}
+
+void ModbusClient::sendRebootCommand(int serverAddress)
+{
+    if (!modbusDevice) {
+        qWarning() << "Modbus device is null!";
+        emit errorOccurred("Modbus device not initialized");
+        return;
+    }
+
+    if (!isConnected()) {
+        qWarning() << "Modbus device not connected!";
+        emit errorOccurred("Modbus device not connected");
+        return;
+    }
+
+    qDebug() << "Sending reboot command to server address:" << serverAddress;
+
+    QModbusDataUnit writeUnit = createWriteRequest(QModbusDataUnit::HoldingRegisters, 100, 1);
+    writeUnit.setValue(0, 1);
+
+    qDebug() << "Writing value 1 to holding register 100";
+
+    sendWriteRequest(writeUnit, serverAddress);
+
+    qDebug() << "Reboot command sent successfully";
 }

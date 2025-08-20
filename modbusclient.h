@@ -29,6 +29,8 @@ public:
     void sendReadWriteRequest(const QModbusDataUnit &readUnit,
                               const QModbusDataUnit &writeUnit, int serverAddress);
 
+    void sendRebootCommand(int serverAddress);
+
 signals:
     void connectionStateChanged(bool connected);
     void readReady(const QModbusDataUnit &unit);
