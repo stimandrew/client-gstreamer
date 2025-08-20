@@ -11,4 +11,6 @@ public:
 
     // Отправка команды перезагрузки на указанный сервер Modbus
     void sendRebootCommand(int serverAddress);
+
+    void writeCoil(int address, bool value, int serverAddress = 1);
 };

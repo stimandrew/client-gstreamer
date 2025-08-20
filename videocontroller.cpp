@@ -167,3 +167,12 @@ void VideoController::sendRebootCommand()
         emit modbusErrorOccurred("Modbus not connected");
     }
 }
+
+void VideoController::writeCoil(int address, bool value)
+{
+    if (deviceClient && deviceClient->isConnected()) {
+        deviceClient->writeCoil(address, value, 1); // serverAddress = 1
+    } else {
+        emit modbusErrorOccurred("Modbus not connected");
+    }
+}

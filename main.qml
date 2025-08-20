@@ -1,14 +1,15 @@
 import QtQuick 2.15
 import QtQuick.Window 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Layouts 2.15
 import VideoRenderer 1.0
 import VideoController 1.0
 
 Window {
     id: mainWindow
     visible: true
-    width: 1280
-    height: 720
+    width: 1920
+    height: 1080
     color: "black"
 
     Connections {
@@ -469,24 +470,87 @@ Window {
                         verticalAlignment: Text.AlignVCenter
                     }
                 }
+                Column {
+                    width: parent.width
+                    spacing: 15
 
-                Button {
-                    text: "Reboot System"
-                    enabled: controller1.modbusConnected
-                    onClicked: {
-                        var component = Qt.createComponent("ConfirmDialog.qml");
-                        if (component.status === Component.Ready) {
-                            var dialog = component.createObject(mainWindow);
-                            dialog.confirmed.connect(function() {
-                                controller1.sendRebootCommand();
-                            });
-                            dialog.open();
-                        } else {
-                            console.error("Error loading component:", component.errorString());
+                    Button {
+                        text: "Reboot System"
+                        enabled: controller1.modbusConnected
+                        onClicked: {
+                            var component = Qt.createComponent("ConfirmDialog.qml");
+                            if (component.status === Component.Ready) {
+                                var dialog = component.createObject(mainWindow);
+                                dialog.confirmed.connect(function() {
+                                    controller1.sendRebootCommand();
+                                });
+                                dialog.open();
+                            } else {
+                                console.error("Error loading component:", component.errorString());
+                            }
+                        }
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Send reboot command to server"
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+
+                    GroupBox {
+                        title: "Modbus Camera Control"
+                        width: parent.width
+
+                        ColumnLayout {
+                            width: parent.width
+                            spacing: 10
+
+                            RowLayout {
+                                Label {
+                                    text: "Camera 1:"
+                                    color: "white"
+                                }
+                                Switch {
+                                    id: cam1Switch
+                                    enabled: controller1.modbusConnected
+                                    onCheckedChanged: {
+                                        if (controller1.modbusConnected) {
+                                            controller1.writeCoil(0, checked)
+                                        }
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                Label {
+                                    text: "Camera 2:"
+                                    color: "white"
+                                }
+                                Switch {
+                                    id: cam2Switch
+                                    enabled: controller1.modbusConnected
+                                    onCheckedChanged: {
+                                        if (controller1.modbusConnected) {
+                                            controller1.writeCoil(1, checked)
+                                        }
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                Label {
+                                    text: "Camera 3:"
+                                    color: "white"
+                                }
+                                Switch {
+                                    id: cam3Switch
+                                    enabled: controller1.modbusConnected
+                                    onCheckedChanged: {
+                                        if (controller1.modbusConnected) {
+                                            controller1.writeCoil(2, checked)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
-                    ToolTip.visible: hovered
-                    ToolTip.text: "Send reboot command to server"
                 }
             }
         }

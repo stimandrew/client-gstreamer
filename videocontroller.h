@@ -42,6 +42,7 @@ public:
     Q_INVOKABLE void disconnectModbus();
 
     Q_INVOKABLE void sendRebootCommand();
+    Q_INVOKABLE void writeCoil(int address, bool value);
 
 signals:
     void isRunningChanged(bool isRunning);
