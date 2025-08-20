@@ -3,7 +3,7 @@
 
 VideoController::VideoController(QObject *parent) : QObject(parent)
 {
-    deviceClient = new ModbusCommandsClient(this);
+    deviceClient = new ModbusDeviceClient(this);
     connect(deviceClient, &ModbusClient::connectionStateChanged,
             this, &VideoController::onModbusConnectionStateChanged);
     connect(deviceClient, &ModbusClient::errorOccurred,

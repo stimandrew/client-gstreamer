@@ -1,13 +1,13 @@
-#include "modbuscommandsclient.h"
+#include "modbusdeviceclient.h"
 #include <QDebug>
 
 // Конструктор: инициализация объекта ModbusDeviceClient
-ModbusCommandsClient::ModbusCommandsClient(QObject *parent) : ModbusClient(parent)
+ModbusDeviceClient::ModbusDeviceClient(QObject *parent) : ModbusClient(parent)
 {
 }
 
 // Отправка команды перезагрузки на указанный сервер Modbus
-void ModbusCommandsClient::sendRebootCommand(int serverAddress)
+void ModbusDeviceClient::sendRebootCommand(int serverAddress)
 {
     if (!modbusDevice) {
         qWarning() << "Modbus device is null!";

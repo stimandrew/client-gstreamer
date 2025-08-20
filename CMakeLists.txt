@@ -51,7 +51,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         postprocess.h
         postprocess.cpp
         modbusclient.h modbusclient.cpp
-        modbuscommandsclient.h modbuscommandsclient.cpp
+        modbusdeviceclient.h modbusdeviceclient.cpp
 
     )
 # Define target properties for Android with Qt 6 as:
