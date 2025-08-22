@@ -13,4 +13,10 @@ public:
     void sendRebootCommand(int serverAddress);
 
     void writeCoil(int address, bool value, int serverAddress = 1);
+
+signals:
+    void cameraStateChanged(int cameraIndex, bool isActive);
+
+public slots:
+    void readCameraStates(int serverAddress = 1);
 };

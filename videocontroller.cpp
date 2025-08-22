@@ -8,12 +8,19 @@ VideoController::VideoController(QObject *parent) : QObject(parent)
             this, &VideoController::onModbusConnectionStateChanged);
     connect(deviceClient, &ModbusClient::errorOccurred,
             this, &VideoController::onModbusError);
+    connect(deviceClient, &ModbusDeviceClient::cameraStateChanged,
+            this, &VideoController::onCameraStateChanged);
 }
 
 VideoController::~VideoController()
 {
     stop();
     delete m_pipeline;
+
+    if (m_updateTimer) {
+        m_updateTimer->stop();
+        delete m_updateTimer;
+    }
 }
 
 bool VideoController::isRunning() const { return m_isRunning; }
@@ -30,6 +37,18 @@ QVariantList VideoController::objects() const {
     }
     return list;
 }
+
+bool VideoController::modbusConnected() const {
+    return deviceClient ? deviceClient->isConnected() : false;
+}
+
+QString VideoController::modbusAddress() const {
+    return m_modbusAddress;
+}
+
+bool VideoController::camera1Active() const { return m_cameraStates.value(0, false); }
+bool VideoController::camera2Active() const { return m_cameraStates.value(1, false); }
+bool VideoController::camera3Active() const { return m_cameraStates.value(2, false); }
 
 void VideoController::setPort(int port)
 {
@@ -119,14 +138,6 @@ void VideoController::resetPipeline() {
     }
 }
 
-bool VideoController::modbusConnected() const {
-    return deviceClient ? deviceClient->isConnected() : false;
-}
-
-QString VideoController::modbusAddress() const {
-    return m_modbusAddress;
-}
-
 void VideoController::setModbusAddress(const QString& address) {
     if (m_modbusAddress != address) {
         m_modbusAddress = address;
@@ -152,6 +163,25 @@ void VideoController::disconnectModbus() {
 }
 
 void VideoController::onModbusConnectionStateChanged(bool connected) {
+    if (connected) {
+        // При подключении сразу запрашиваем состояние камер
+        readCameraStates();
+
+        // Запускаем периодическое обновление состояния камер
+        if (!m_updateTimer) {
+            m_updateTimer = new QTimer(this);
+            connect(m_updateTimer, &QTimer::timeout, this, &VideoController::readCameraStates);
+        }
+        m_updateTimer->start(2000); // Обновление каждые 2 секунды
+    } else {
+        // Останавливаем таймер при отключении
+        if (m_updateTimer) {
+            m_updateTimer->stop();
+        }
+        // Очищаем состояния камер
+        m_cameraStates.clear();
+        emit cameraStatesChanged();
+    }
     emit modbusConnectedChanged(connected);
 }
 
@@ -174,5 +204,21 @@ void VideoController::writeCoil(int address, bool value)
         deviceClient->writeCoil(address, value, 1); // serverAddress = 1
     } else {
         emit modbusErrorOccurred("Modbus not connected");
+    }
+}
+
+void VideoController::onCameraStateChanged(int cameraIndex, bool isActive)
+{
+    if (m_cameraStates.value(cameraIndex, false) != isActive) {
+        m_cameraStates[cameraIndex] = isActive;
+        emit cameraStatesChanged();
+        qDebug() << "Camera" << cameraIndex + 1 << "state changed to:" << isActive;
+    }
+}
+
+void VideoController::readCameraStates()
+{
+    if (deviceClient && deviceClient->isConnected()) {
+        deviceClient->readCameraStates(1);
     }
 }

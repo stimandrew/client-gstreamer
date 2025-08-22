@@ -60,3 +60,43 @@ void ModbusDeviceClient::writeCoil(int address, bool value, int serverAddress)
 
     qDebug() << "Coil write command sent successfully";
 }
+
+void ModbusDeviceClient::readCameraStates(int serverAddress)
+{
+    if (!modbusDevice) {
+        qWarning() << "Modbus device is null!";
+        emit errorOccurred("Modbus device not initialized");
+        return;
+    }
+
+    if (!isConnected()) {
+        qWarning() << "Modbus device not connected!";
+        emit errorOccurred("Modbus device not connected");
+        return;
+    }
+
+    QModbusDataUnit readUnit = createReadRequest(QModbusDataUnit::Coils, 0, 10);
+
+    if (auto *reply = modbusDevice->sendReadRequest(readUnit, serverAddress)) {
+        if (!reply->isFinished()) {
+            connect(reply, &QModbusReply::finished, this, [this, reply]() {
+                if (reply->error() == QModbusDevice::NoError) {
+                    const QModbusDataUnit result = reply->result();
+                    for (int i = 0; i < result.valueCount(); i++) {
+                        bool isActive = result.value(i) != 0;
+                        emit cameraStateChanged(i, isActive);
+                    }
+                } else {
+                    emit errorOccurred(QString("Failed to read camera states: %1").arg(reply->errorString()));
+                }
+                reply->deleteLater();
+            });
+        } else {
+            delete reply;
+            emit errorOccurred("Failed to send read request");
+        }
+    } else {
+        emit errorOccurred(QString("Failed to create read request: %1").arg(modbusDevice->errorString()));
+    }
+}
+

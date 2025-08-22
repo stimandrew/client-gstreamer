@@ -505,49 +505,77 @@ Window {
                             RowLayout {
                                 Label {
                                     text: "Camera 1:"
-                                    color: "white"
+                                    color: controller1.camera1Active ? "lightgreen" : "white"
                                 }
                                 Switch {
                                     id: cam1Switch
                                     enabled: controller1.modbusConnected
+                                    checked: controller1.camera1Active
                                     onCheckedChanged: {
-                                        if (controller1.modbusConnected) {
+                                        if (controller1.modbusConnected && checked !== controller1.camera1Active) {
                                             controller1.writeCoil(0, checked)
                                         }
                                     }
+                                }
+                                Rectangle {
+                                    width: 12
+                                    height: 12
+                                    radius: 6
+                                    color: controller1.camera1Active ? "green" : "red"
                                 }
                             }
 
                             RowLayout {
                                 Label {
                                     text: "Camera 2:"
-                                    color: "white"
+                                    color: controller1.camera2Active ? "lightgreen" : "white"
                                 }
                                 Switch {
                                     id: cam2Switch
                                     enabled: controller1.modbusConnected
+                                    checked: controller1.camera2Active
                                     onCheckedChanged: {
-                                        if (controller1.modbusConnected) {
+                                        if (controller1.modbusConnected && checked !== controller1.camera2Active) {
                                             controller1.writeCoil(1, checked)
                                         }
                                     }
+                                }
+                                Rectangle {
+                                    width: 12
+                                    height: 12
+                                    radius: 6
+                                    color: controller1.camera2Active ? "green" : "red"
                                 }
                             }
 
                             RowLayout {
                                 Label {
                                     text: "Camera 3:"
-                                    color: "white"
+                                    color: controller1.camera3Active ? "lightgreen" : "white"
                                 }
                                 Switch {
                                     id: cam3Switch
                                     enabled: controller1.modbusConnected
+                                    checked: controller1.camera3Active
                                     onCheckedChanged: {
-                                        if (controller1.modbusConnected) {
+                                        if (controller1.modbusConnected && checked !== controller1.camera3Active) {
                                             controller1.writeCoil(2, checked)
                                         }
                                     }
                                 }
+                                Rectangle {
+                                    width: 12
+                                    height: 12
+                                    radius: 6
+                                    color: controller1.camera3Active ? "green" : "red"
+                                }
+                            }
+
+                            Button {
+                                text: "Refresh States"
+                                enabled: controller1.modbusConnected
+                                onClicked: controller1.readCameraStates()
+                                Layout.alignment: Qt.AlignCenter
                             }
                         }
                     }

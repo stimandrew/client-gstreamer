@@ -2,6 +2,8 @@
 
 #include <QObject>
 #include <QVariant>
+#include <QMap>
+#include <QTimer>
 #include "videopipeline.h"
 #include "modbusdeviceclient.h"
 
@@ -16,6 +18,9 @@ class VideoController : public QObject
     Q_PROPERTY(int fps READ fps NOTIFY fpsChanged)
     Q_PROPERTY(bool modbusConnected READ modbusConnected NOTIFY modbusConnectedChanged)
     Q_PROPERTY(QString modbusAddress READ modbusAddress WRITE setModbusAddress NOTIFY modbusAddressChanged)
+    Q_PROPERTY(bool camera1Active READ camera1Active NOTIFY cameraStatesChanged)
+    Q_PROPERTY(bool camera2Active READ camera2Active NOTIFY cameraStatesChanged)
+    Q_PROPERTY(bool camera3Active READ camera3Active NOTIFY cameraStatesChanged)
 
 public:
     explicit VideoController(QObject *parent = nullptr);
@@ -30,6 +35,9 @@ public:
 
     bool modbusConnected() const;
     QString modbusAddress() const;
+    bool camera1Active() const;
+    bool camera2Active() const;
+    bool camera3Active() const;
 
     Q_INVOKABLE void setPort(int port);
     Q_INVOKABLE void setYoloEnabled(bool enabled);
@@ -43,6 +51,7 @@ public:
 
     Q_INVOKABLE void sendRebootCommand();
     Q_INVOKABLE void writeCoil(int address, bool value);
+    Q_INVOKABLE void readCameraStates();
 
 signals:
     void isRunningChanged(bool isRunning);
@@ -56,12 +65,13 @@ signals:
     void modbusConnectedChanged(bool connected);
     void modbusAddressChanged(const QString& address);
     void modbusErrorOccurred(const QString& error);
+    void cameraStatesChanged();
 
 private slots:
     void onFpsChanged(int fps);
-
     void onModbusConnectionStateChanged(bool connected);
     void onModbusError(const QString& error);
+    void onCameraStateChanged(int cameraIndex, bool isActive);
 
 private:
     VideoPipeline *m_pipeline = nullptr;
@@ -75,4 +85,6 @@ private:
 
     ModbusDeviceClient *deviceClient = nullptr;
     QString m_modbusAddress;
+    QMap<int, bool> m_cameraStates;
+    QTimer *m_updateTimer = nullptr;
 };
